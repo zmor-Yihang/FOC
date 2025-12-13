@@ -2,7 +2,7 @@
 #define __MAIN_H__
 
 #include "bsp/clock.h"
-
+#include "utils/fast_sin_cos.h"
 
 
 #endif /* __MAIN_H__ */

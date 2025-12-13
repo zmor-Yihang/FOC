@@ -1,6 +1,8 @@
 #include "clock.h"
 
-void clock_config(void)
+
+/* 初始化时钟， 配置为85MHz */
+void clock_init(void)
 {
     RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
     RCC_OscInitTypeDef RCC_OscInitStruct = {0};

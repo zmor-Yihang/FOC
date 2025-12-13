@@ -3,6 +3,6 @@
 
 #include "stm32g4xx_hal.h"
 
-void clock_config(void);
+void clock_init(void);
 
 #endif /* __CLOCK_H__ */
