@@ -1,6 +1,8 @@
 #ifndef __TYPE_CONFIG_H__
 #define __TYPE_CONFIG_H__
 
+#include "stm32g4xx_hal.h"
+
 // 三相坐标 (用于 U-V-W 电流或电压)
 typedef struct {
     float axis_1; // U

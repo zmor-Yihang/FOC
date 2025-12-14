@@ -6,9 +6,6 @@
     ],
     "settings": {
         "terminal.integrated.shellIntegration.enabled": false,
-        "clangd.arguments": [
-            "--header-insertion=never"
-        ],
         "files.autoGuessEncoding": true,
         "C_Cpp.default.configurationProvider": "cl.eide",
         "C_Cpp.errorSquiggles": "disabled",
@@ -22,7 +19,9 @@
             "*.c++": "cpp",
             "*.cpp": "cpp",
             "*.cxx": "cpp",
-            "*.cc": "cpp"
+            "*.cc": "cpp",
+            "*.tcc": "c",
+            "cstdint": "c"
         },
         "[yaml]": {
             "editor.insertSpaces": true,
