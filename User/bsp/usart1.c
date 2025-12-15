@@ -25,8 +25,7 @@ DMA_HandleTypeDef hdma_usart1_rx; /* 声明USART1接收DMA句柄 */
 DMA_HandleTypeDef hdma_usart1_tx; /* 声明USART1发送DMA句柄 */
 
 /* 接收缓冲区 */
-#define RX_BUFFER_SIZE 128           /* 定义接收缓冲区大小为128字节 */
-uint8_t rxBuffer[RX_BUFFER_SIZE];    /* 实际接收缓冲区 */
+uint8_t rxBuffer[128];               /* 实际接收缓冲区 */
 volatile uint16_t rxSize = 0;        /* 实际接收到的数据长度 */
 volatile uint8_t rxCompleteFlag = 0; /* 接收完成标志 */
 
@@ -57,7 +56,7 @@ void usart1_init(void)
 
     /* 初始化UART参数 */
     huart1.Instance = USART1;                                     /* 指定USART1外设 */
-    huart1.Init.BaudRate = 115200;                                /* 波特率115200 */
+    huart1.Init.BaudRate = 500000;                                /* 波特率500000 */
     huart1.Init.WordLength = UART_WORDLENGTH_8B;                  /* 8位数据位 */
     huart1.Init.StopBits = UART_STOPBITS_1;                       /* 1位停止位 */
     huart1.Init.Parity = UART_PARITY_NONE;                        /* 无校验 */
@@ -118,7 +117,7 @@ void usart1_sendData(uint8_t *data, uint16_t size)
     /* 等待上一次DMA发送完成，避免冲突 */
     while (huart1.gState != HAL_UART_STATE_READY)
     {
-        /* 可以添加超时处理 */
+        /* 超时处理 */
     }
     HAL_UART_Transmit_DMA(&huart1, data, size); /* DMA 方式发送数据 */
 }
@@ -127,6 +126,7 @@ void usart1_receiveData(uint8_t *data, uint16_t size)
 {
     HAL_UART_Receive_DMA(&huart1, data, size); /* 阻塞方式接收数据 */
 }
+
 
 /* UART1中断服务函数 */
 void USART1_IRQHandler(void)

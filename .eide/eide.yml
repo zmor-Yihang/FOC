@@ -83,8 +83,8 @@ targets:
           asm-compiler: {}
           beforeBuildTasks: []
           c/cpp-compiler:
-            language-c: c11
-            language-cpp: c++11
+            language-c: gnu11
+            language-cpp: gnu++11
             one-elf-section-per-data: true
             one-elf-section-per-function: true
             optimization: level-debug
@@ -99,7 +99,8 @@ targets:
             $outputTaskExcludes:
               - .bin
             $toolName: auto
-            LIB_FLAGS: -lm
+            LIB_FLAGS: -lm -u _printf_float
+            misc-controls: ""
             output-format: elf
             remove-unused-input-sections: true
         scatterFilePath: STM32G431KBTX_FLASH.ld
