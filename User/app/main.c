@@ -1,6 +1,5 @@
 #include "main.h"
 
-
 int main(void)
 {
     HAL_Init();
@@ -9,28 +8,30 @@ int main(void)
 
     float t = 0.0f;
     int count = 0;
-    uint32_t lastTick = 0;  // 用于非阻塞定时
-    
+    uint32_t lastTick = 0; // 用于非阻塞定时
+    uint8_t rxBuffer[128]; // 接收缓冲区
+
     while (1)
     {
         /* 检查是否接收到数据 - 每次循环都检查 */
-        if (rxCompleteFlag)
+        if (usart1_fifo_is_empty() == 0)
         {
-            rxCompleteFlag = 0;  // 清除标志
-            // 处理接收到的数据，rxBuffer中有rxSize字节数据
+            // 从FIFO读取数据
+            uint16_t rxSize = usart1_read_data(rxBuffer, sizeof(rxBuffer));
+
             // 示例：回显接收到的数据
-            usart1_sendData(rxBuffer, rxSize);
+            usart1_send_data(rxBuffer, rxSize);
         }
 
         /* 非阻塞定时：每50ms执行一次发送 */
         if (HAL_GetTick() - lastTick >= 50)
         {
             lastTick = HAL_GetTick();
-            
+
             t += 0.1f;
             count++;
-            float ch1 = fast_sin(t);           // 正弦波
-            float ch2 = fast_cos(t);           // 余弦波
+            float ch1 = fast_sin(t);               // 正弦波
+            float ch2 = fast_cos(t);               // 余弦波
             float ch3 = fast_sin(t) * fast_cos(t); // 或者是其他的变量，比如 PID 的 Error
 
             // 调用刚才写的函数

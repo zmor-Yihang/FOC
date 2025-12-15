@@ -25,9 +25,11 @@ DMA_HandleTypeDef hdma_usart1_rx; /* 声明USART1接收DMA句柄 */
 DMA_HandleTypeDef hdma_usart1_tx; /* 声明USART1发送DMA句柄 */
 
 /* 接收缓冲区 */
-uint8_t rxBuffer[128];               /* 实际接收缓冲区 */
-volatile uint16_t rxSize = 0;        /* 实际接收到的数据长度 */
-volatile uint8_t rxCompleteFlag = 0; /* 接收完成标志 */
+uint8_t rx_buf_temp[RX_BUF_TEMP_SIZE]; /* 临时接收缓冲区 */
+volatile uint16_t rx_size = 0;         /* 一次接收到的数据长度 */
+
+_fff_declare(uint8_t, fifo_uart_rx, 256); // 声明256字节FIFO
+_fff_init(fifo_uart_rx);                  // 初始化FIFO
 
 void usart1_init(void)
 {
@@ -104,29 +106,43 @@ void usart1_init(void)
     HAL_NVIC_SetPriority(USART1_IRQn, 2, 0);        /* 设置USART1中断优先级 */
     HAL_NVIC_EnableIRQ(USART1_IRQn);                /* 使能USART1中断 */
 
-    /* 启动DMA方式接收，准备接收128字节数据到rxBuffer */
-    HAL_UART_Receive_DMA(&huart1, rxBuffer, RX_BUFFER_SIZE);
+    /* 启动DMA方式接收，准备接收128字节数据到rx_buf_temp */
+    HAL_UART_Receive_DMA(&huart1, rx_buf_temp, RX_BUF_TEMP_SIZE);
 
     /* 使能UART空闲中断（IDLE），用于变长包分包 */
     __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);
 }
 
 /* 发送数据函数 */
-void usart1_sendData(uint8_t *data, uint16_t size)
+void usart1_send_data(uint8_t *data, uint16_t size)
 {
     /* 等待上一次DMA发送完成，避免冲突 */
-    while (huart1.gState != HAL_UART_STATE_READY)
-    {
-        /* 超时处理 */
-    }
+    while (huart1.gState != HAL_UART_STATE_READY);
     HAL_UART_Transmit_DMA(&huart1, data, size); /* DMA 方式发送数据 */
 }
 
-void usart1_receiveData(uint8_t *data, uint16_t size)
+/* 从FIFO读取指定数量的数据 */
+uint16_t usart1_read_data(uint8_t *buf, uint16_t size)
 {
-    HAL_UART_Receive_DMA(&huart1, data, size); /* 阻塞方式接收数据 */
+    uint16_t i;
+    for (i = 0; i < size && !_fff_is_empty(fifo_uart_rx); i++)
+    {
+        buf[i] = _fff_read(fifo_uart_rx);
+    }
+    return i; /* 返回实际读取的字节数 */
 }
 
+/* 获取 fifo_uart_rx 中剩余空间 */
+uint16_t usart1_get_available_buffer(void)
+{
+    return _fff_mem_free(fifo_uart_rx);
+}
+
+/* 检查fifo_uart_rx是否为空, 0表示非空，非0表示空 */
+uint8_t usart1_fifo_is_empty(void)
+{
+    return _fff_is_empty(fifo_uart_rx);
+}
 
 /* UART1中断服务函数 */
 void USART1_IRQHandler(void)
@@ -134,11 +150,9 @@ void USART1_IRQHandler(void)
     /* 判断是否为IDLE中断（空闲线） */
     if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE) != RESET)
     {
-        __HAL_UART_CLEAR_IDLEFLAG(&huart1);                               /* 清除IDLE中断标志 */
-        HAL_UART_DMAStop(&huart1);                                        /* 停止当前DMA接收 */
-        rxSize = RX_BUFFER_SIZE - __HAL_DMA_GET_COUNTER(&hdma_usart1_rx); /* 计算已接收字节数 */
-        rxCompleteFlag = 1;                                               /* 标记接收完成 */
-        HAL_UART_Receive_DMA(&huart1, rxBuffer, RX_BUFFER_SIZE);          /* 重新启动DMA接收 */
+        __HAL_UART_CLEAR_IDLEFLAG(&huart1);                                  /* 清除IDLE中断标志 */
+        rx_size = RX_BUF_TEMP_SIZE - __HAL_DMA_GET_COUNTER(&hdma_usart1_rx); /* 计算已接收字节数 */
+        _fff_write(fifo_uart_rx, rx_size);                                   /* 将接收到的数据写入FIFO */
     }
     HAL_UART_IRQHandler(&huart1); /* 处理HAL库内部其他中断事件 */
 }

@@ -1,6 +1,5 @@
 #include "clock.h"
 
-
 /* 初始化时钟， 配置为85MHz */
 void clock_init(void)
 {
