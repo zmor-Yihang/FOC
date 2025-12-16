@@ -3,6 +3,7 @@
 
 #include "stm32g4xx_hal.h"
 #include "stdio.h"
+#include "./utils/fifofast.h"
 
 extern UART_HandleTypeDef huart1; 
 extern DMA_HandleTypeDef hdma_usart1_rx; /* 声明USART1接收DMA句柄 */

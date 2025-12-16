@@ -13,6 +13,7 @@ int main(void)
     
     while (1)
     {
+        /* 检查是否有接收数据 - 从FIFO读取并回显 */
         /* 检查是否接收到数据 - 每次循环都检查 */
         if (rxCompleteFlag)
         {

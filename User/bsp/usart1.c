@@ -104,7 +104,7 @@ void usart1_init(void)
     HAL_NVIC_SetPriority(USART1_IRQn, 2, 0);        /* 设置USART1中断优先级 */
     HAL_NVIC_EnableIRQ(USART1_IRQn);                /* 使能USART1中断 */
 
-    /* 启动DMA方式接收，准备接收128字节数据到rxBuffer */
+    /* 启动DMA方式接收，准备接收128字节数据到rxBuffer */ 
     HAL_UART_Receive_DMA(&huart1, rxBuffer, RX_BUFFER_SIZE);
 
     /* 使能UART空闲中断（IDLE），用于变长包分包 */
