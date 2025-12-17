@@ -22,7 +22,6 @@
  * 根据不同的编译器设置相应的优化属性：
  * - GCC: 使用-O3优化级别和always_inline强制内联
  * - Keil ARMCC: 使用#pragma O3优化和__forceinline强制内联
- * - 其他编译器: 使用默认inline
  */
 #if defined(__GNUC__)
     #define FAST_MATH_OPT __attribute__((optimize("O3"), always_inline))
@@ -70,9 +69,11 @@
  * - 如果支持硬件FMA指令，则使用fmaf函数
  * - 否则使用标准的乘加运算
  */
-#if defined(__FP_FAST_FMA) || defined(__AVX2__) || defined(__ARM_NEON)
-    #define MY_FMA(a, b, c) fmaf(a, b, c)
+#if defined(__FP_FAST_FMA) || defined(__AVX2__) || defined(__ARM_FEATURE_FMA)
+    // 硬件明确支持 FMA
+    #define MY_FMA(a, b, c) __builtin_fmaf(a, b, c) 
 #else
+    // 即使走这里，由于你开了 -O3，编译器通常也会自动生成 FMA 指令
     #define MY_FMA(a, b, c) ((a) * (b) + (c))
 #endif
 
@@ -87,7 +88,7 @@
  * 
  * @note 使用FMA指令优化计算性能
  */
-static inline float f1_opt(float x)
+static FAST_MATH_OPT inline float f1_opt(float x)
 {
     float u = 1.3528548e-10f;
     u = MY_FMA(u, x, -2.4703144e-08f);
@@ -109,7 +110,7 @@ static inline float f1_opt(float x)
  * 
  * @note 使用FMA指令优化计算性能
  */
-static inline float f2_opt(float x)
+static FAST_MATH_OPT inline float f2_opt(float x)
 {
     float u = 1.7290616e-09f;
     u = MY_FMA(u, x, -2.7093486e-07f);
@@ -203,7 +204,7 @@ FAST_MATH_OPT static inline float fast_cos(float x)
 }
 
 /**
- * @brief 快速正弦/余弦函数（并行计算版本）
+ * @brief 快速正弦/余弦函数（并行计算）
  * 
  * 同时计算一个角度的正弦和余弦值，通过并行计算提高效率。
  * 使用无分支优化技术处理符号位，避免条件判断带来的性能损失。

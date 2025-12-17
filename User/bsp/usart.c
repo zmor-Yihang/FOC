@@ -1,4 +1,4 @@
-#include "usart1.h"
+#include "usart.h"
 
 /*----------------------重定向串口打印--------------------------*/
 int __io_putchar(int ch)
@@ -28,12 +28,14 @@ DMA_HandleTypeDef hdma_usart1_tx; /* 声明USART1发送DMA句柄 */
 uint8_t rx_buf_temp[RX_BUF_TEMP_SIZE]; /* 临时接收缓冲区 */
 volatile uint16_t rx_size = 0;         /* 一次接收到的数据长度 */
 
+static uint16_t last_dma_pos = 0;      /* 上次DMA位置，用于计算增量 */
+
 _fff_declare(uint8_t, fifo_uart_rx, 256); // 声明256字节FIFO
 _fff_init(fifo_uart_rx);                  // 初始化FIFO
 
 void usart1_init(void)
 {
-    GPIO_InitTypeDef GPIO_InitStruct = {0}; /* GPIO初始化结构体 */
+    GPIO_InitTypeDef gpio_init_struct = {0}; /* GPIO初始化结构体 */
 
     /* 使能USART1、GPIOB、DMA1时钟 */
     __HAL_RCC_USART1_CLK_ENABLE();
@@ -42,19 +44,19 @@ void usart1_init(void)
     __HAL_RCC_DMA1_CLK_ENABLE();
 
     /* 配置USART1 TX引脚PB6为复用推挽输出模式 */
-    GPIO_InitStruct.Pin = GPIO_PIN_6;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF7_USART1; /* 配置复用功能为USART1 */
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+    gpio_init_struct.Pin = GPIO_PIN_6;
+    gpio_init_struct.Mode = GPIO_MODE_AF_PP;
+    gpio_init_struct.Pull = GPIO_NOPULL;
+    gpio_init_struct.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init_struct.Alternate = GPIO_AF7_USART1; /* 配置复用功能为USART1 */
+    HAL_GPIO_Init(GPIOB, &gpio_init_struct);
 
     /* 配置USART1 RX引脚PB7为复用推挽输出模式 */
-    GPIO_InitStruct.Pin = GPIO_PIN_7;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+    gpio_init_struct.Pin = GPIO_PIN_7;
+    gpio_init_struct.Mode = GPIO_MODE_AF_PP;
+    gpio_init_struct.Pull = GPIO_NOPULL;
+    gpio_init_struct.Alternate = GPIO_AF7_USART1;
+    HAL_GPIO_Init(GPIOB, &gpio_init_struct);
 
     /* 初始化UART参数 */
     huart1.Instance = USART1;                                     /* 指定USART1外设 */
@@ -117,15 +119,16 @@ void usart1_init(void)
 void usart1_send_data(uint8_t *data, uint16_t size)
 {
     /* 等待上一次DMA发送完成，避免冲突 */
-    while (huart1.gState != HAL_UART_STATE_READY);
+    while (huart1.gState != HAL_UART_STATE_READY)
+        ;
     HAL_UART_Transmit_DMA(&huart1, data, size); /* DMA 方式发送数据 */
 }
 
 /* 从FIFO读取指定数量的数据 */
-uint16_t usart1_read_data(uint8_t *buf, uint16_t size)
+uint16_t usart1_read_data(uint8_t *buf, uint16_t max_size)
 {
     uint16_t i;
-    for (i = 0; i < size && !_fff_is_empty(fifo_uart_rx); i++)
+    for (i = 0; i < max_size && !_fff_is_empty(fifo_uart_rx); i++)
     {
         buf[i] = _fff_read(fifo_uart_rx);
     }
@@ -150,9 +153,32 @@ void USART1_IRQHandler(void)
     /* 判断是否为IDLE中断（空闲线） */
     if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE) != RESET)
     {
-        __HAL_UART_CLEAR_IDLEFLAG(&huart1);                                  /* 清除IDLE中断标志 */
-        rx_size = RX_BUF_TEMP_SIZE - __HAL_DMA_GET_COUNTER(&hdma_usart1_rx); /* 计算已接收字节数 */
-        _fff_write(fifo_uart_rx, rx_size);                                   /* 将接收到的数据写入FIFO */
+        __HAL_UART_CLEAR_IDLEFLAG(&huart1); /* 清除IDLE中断标志 */
+
+        /* 计算当前DMA位置 */
+        uint16_t curr_dma_pos = RX_BUF_TEMP_SIZE - __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
+
+        if (curr_dma_pos != last_dma_pos)
+        {
+            if (curr_dma_pos > last_dma_pos)
+            {
+                /* 正常情况：新数据在 last_dma_pos 到 curr_dma_pos 之间 */
+                rx_size = curr_dma_pos - last_dma_pos;
+                _fff_write_multiple(fifo_uart_rx, &rx_buf_temp[last_dma_pos], rx_size);
+            }
+            else
+            {
+                /* DMA环绕：先写 last_dma_pos 到末尾，再写开头到 curr_dma_pos */
+                rx_size = RX_BUF_TEMP_SIZE - last_dma_pos;
+                _fff_write_multiple(fifo_uart_rx, &rx_buf_temp[last_dma_pos], rx_size);
+                if (curr_dma_pos > 0)
+                {
+                    _fff_write_multiple(fifo_uart_rx, rx_buf_temp, curr_dma_pos);
+                }
+                rx_size += curr_dma_pos;
+            }
+            last_dma_pos = curr_dma_pos; /* 更新位置 */
+        }
     }
     HAL_UART_IRQHandler(&huart1); /* 处理HAL库内部其他中断事件 */
 }

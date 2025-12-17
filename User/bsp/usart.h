@@ -1,5 +1,5 @@
-#ifndef __USART1_H__
-#define __USART1_H__
+#ifndef __USART_H__
+#define __USART_H__
 
 #include "stm32g4xx_hal.h"
 #include "stdio.h"
@@ -14,8 +14,9 @@ extern DMA_HandleTypeDef hdma_usart1_tx; /* 声明USART1发送DMA句柄 */
 
 void usart1_init(void);
 void usart1_send_data(uint8_t *data, uint16_t size);
-uint16_t usart1_read_data(uint8_t *buf, uint16_t size);
+uint16_t usart1_read_data(uint8_t *buf, uint16_t max_size);
+
 uint16_t usart1_get_available_buffer(void);
 uint8_t usart1_fifo_is_empty(void);
 
-#endif /* __USART1_H__ */
+#endif /* __USART_H__ */

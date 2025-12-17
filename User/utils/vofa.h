@@ -6,7 +6,7 @@
 #include <string.h>  // 用于 strlen
 
 #include "stm32g4xx_hal.h" 
-#include "bsp/usart1.h" 
+#include "bsp/usart.h" 
 
 void vofa_print(UART_HandleTypeDef *huart, const char *format, ...);
 
