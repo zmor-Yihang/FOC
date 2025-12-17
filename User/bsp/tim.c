@@ -57,7 +57,7 @@ void tim1_init(void)
     HAL_TIMEx_MasterConfigSynchronization(&htim1, &tim1_master_init_struct);
 
     /* 配置输出比较通道参数 */
-    tim1_oc_init_struct.OCMode = TIM_OCMODE_PWM2;             
+    tim1_oc_init_struct.OCMode = TIM_OCMODE_PWM2;
     tim1_oc_init_struct.OCIdleState = TIM_OCIDLESTATE_RESET;   /* 主通道空闲状态为低电平 */
     tim1_oc_init_struct.OCNIdleState = TIM_OCNIDLESTATE_RESET; /* 互补通道空闲状态为低电平 */
     tim1_oc_init_struct.OCPolarity = TIM_OCPOLARITY_HIGH;      /* 主通道输出极性为高 */
@@ -94,14 +94,20 @@ void tim1_init(void)
 void tim1_set_duty(float duty1, float duty2, float duty3)
 {
     /* 边界检查 */
-    if (duty1 < 0.0f) duty1 = 0.0f;
-    if (duty1 > 1.0f) duty1 = 1.0f;
-    if (duty2 < 0.0f) duty2 = 0.0f;
-    if (duty2 > 1.0f) duty2 = 1.0f;
-    if (duty3 < 0.0f) duty3 = 0.0f;
-    if (duty3 > 1.0f) duty3 = 1.0f;
+    if (duty1 < 0.0f)
+        duty1 = 0.0f;
+    if (duty1 > 1.0f)
+        duty1 = 1.0f;
+    if (duty2 < 0.0f)
+        duty2 = 0.0f;
+    if (duty2 > 1.0f)
+        duty2 = 1.0f;
+    if (duty3 < 0.0f)
+        duty3 = 0.0f;
+    if (duty3 > 1.0f)
+        duty3 = 1.0f;
 
-        // 计算比较值：compare = duty * TIM1_PERIOD
+    // 计算比较值：compare = duty * TIM1_PERIOD
     uint32_t compare1 = (uint32_t)(duty1 * TIM1_PERIOD);
     uint32_t compare2 = (uint32_t)(duty2 * TIM1_PERIOD);
     uint32_t compare3 = (uint32_t)(duty3 * TIM1_PERIOD);
@@ -110,4 +116,19 @@ void tim1_set_duty(float duty1, float duty2, float duty3)
     __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, compare1);
     __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, compare2);
     __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, compare3);
+}
+
+float tim1_get_duty(uint32_t channel)
+{
+    switch (channel)
+    {
+    case TIM_CHANNEL_1:
+        return (float)__HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_1) / TIM1_PERIOD;
+    case TIM_CHANNEL_2:
+        return (float)__HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_2) / TIM1_PERIOD;
+    case TIM_CHANNEL_3:
+        return (float)__HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_3) / TIM1_PERIOD;
+    default:
+        return 0.0f;
+    }
 }
