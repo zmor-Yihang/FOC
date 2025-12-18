@@ -27,14 +27,14 @@ typedef struct
 {
     float kp; // 比例系数
     float ki; // 积分系数
-    float kd; // 微分系数 (电流环通常不用，速度环可能用)
+    float kd; // 微分系数, FOC 不用
 
     float error;      // 当前误差
     float error_prev; // 上次误差
     float integral;   // 积分项累加
 
     float out;          // PID输出
-    float out_max;      // 输出限幅 (如电压最大值)
+    float out_max;      // 输出限幅
     float out_min;      // 输出下限
     float integral_max; // 积分抗饱和限幅
 } pid_controller_t;
