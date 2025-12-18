@@ -5,20 +5,21 @@ void test_clark_park(void)
     float t = 0.01f;
     float theta = 0;
 
-    phase3_t uvw_voltages = {0};
-    phase2_t alpha_beta_voltages = {0};
-    phase2_t dq_voltages = {0};
+    abc_t uvw_voltages = {0};
+    alphabeta_t alpha_beta_voltages = {0};
+    dq_t dq_voltages = {0};
 
     while (1)
     {
-        uvw_voltages.axis_1 = 20.0f*fast_cos(2 * 3.14 * 50 * t + 3.1415926/3.0f);
-        uvw_voltages.axis_2 = 20.0f*fast_cos(2 * 3.14 * 50 * t - 2.09 + 3.1415926/3.0f);
-        uvw_voltages.axis_3 = 20.0f*fast_cos(2 * 3.14 * 50 * t + 2.09 + 3.1415926/3.0f);
+        uvw_voltages.a = 20.0f*fast_cos(2 * 3.14 * 50 * t + 3.1415926/3.0f);
+        uvw_voltages.b = 20.0f*fast_cos(2 * 3.14 * 50 * t - 2.09 + 3.1415926/3.0f);
+        uvw_voltages.c = 20.0f*fast_cos(2 * 3.14 * 50 * t + 2.09 + 3.1415926/3.0f);
 
-        clark_transform(uvw_voltages, &alpha_beta_voltages);
-        park_transform(alpha_beta_voltages, theta, &dq_voltages);
+        alpha_beta_voltages = clark_transform(uvw_voltages);
+        dq_voltages = park_transform(alpha_beta_voltages, theta);
 
-        vofa_print(&huart1, "%.3f, %.3f, %.3f, %.3f\r\n", alpha_beta_voltages.axis_1, alpha_beta_voltages.axis_2, dq_voltages.axis_1, dq_voltages.axis_2);
+        vofa_print(&huart1, "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f\r\n",uvw_voltages.a, uvw_voltages.b, uvw_voltages.c,
+             alpha_beta_voltages.alpha, alpha_beta_voltages.beta, dq_voltages.d, dq_voltages.q);
         
         HAL_Delay(100);
         t += 0.0001f;

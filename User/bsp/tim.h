@@ -4,6 +4,7 @@
 #include "stm32g4xx_hal.h"
 
 extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim3;
 
 /*
  * TIM1 PWM配置参数
@@ -17,6 +18,11 @@ extern TIM_HandleTypeDef htim1;
 #define TIM1_DEADTIME 170 /* 死区时间：170/170MHz ≈ 1us */
 
 void tim1_init(void);
-void tim1_set_duty(float duty1, float duty2, float duty3);
+void tim1_set_pwm_duty(float duty1, float duty2, float duty3);
+float tim1_get_pwm_duty(uint32_t channel);
+
+void tim3_init(void);
+void tim3_start(void);
+
 
 #endif /* __TIM_H__ */

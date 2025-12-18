@@ -2,6 +2,7 @@
 
 /* 高级定时器1句柄 */
 TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim3;
 
 /* PA8-A10 为 TIM1_CH1-3, PB13-B15 为 TIM1_CHN 1-3 */
 void tim1_init(void)
@@ -91,7 +92,7 @@ void tim1_init(void)
     HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 }
 
-void tim1_set_duty(float duty1, float duty2, float duty3)
+void tim1_set_pwm_duty(float duty1, float duty2, float duty3)
 {
     /* 边界检查 */
     if (duty1 < 0.0f)
@@ -107,7 +108,7 @@ void tim1_set_duty(float duty1, float duty2, float duty3)
     if (duty3 > 1.0f)
         duty3 = 1.0f;
 
-    // 计算比较值：compare = duty * TIM1_PERIOD
+    /* 计算比较值：compare = duty * TIM1_PERIOD */
     uint32_t compare1 = (uint32_t)(duty1 * TIM1_PERIOD);
     uint32_t compare2 = (uint32_t)(duty2 * TIM1_PERIOD);
     uint32_t compare3 = (uint32_t)(duty3 * TIM1_PERIOD);
@@ -118,7 +119,7 @@ void tim1_set_duty(float duty1, float duty2, float duty3)
     __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, compare3);
 }
 
-float tim1_get_duty(uint32_t channel)
+float tim1_get_pwm_duty(uint32_t channel)
 {
     switch (channel)
     {
@@ -132,3 +133,113 @@ float tim1_get_duty(uint32_t channel)
         return 0.0f;
     }
 }
+
+/* ---------------TIM3 驱动--------------- */
+
+/**
+ *     PA6     ------> TIM3_CH1
+ *     PA7     ------> TIM3_CH2
+ *     PB0     ------> TIM3_CH3
+ */
+void tim3_init(void)
+{
+    GPIO_InitTypeDef gpio_init_struct = {0};
+    TIM_Encoder_InitTypeDef tim_encoder_init_struct = {0};
+    TIM_MasterConfigTypeDef tim_master_init_struct = {0};
+    TIM_IC_InitTypeDef tim_ic_init_struct = {0};
+
+    /* 使能时钟 */
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_TIM3_CLK_ENABLE();
+
+    /* 配置PA6、PA7为编码器通道A、B */
+    gpio_init_struct.Pin = GPIO_PIN_6 | GPIO_PIN_7;
+    gpio_init_struct.Mode = GPIO_MODE_AF_PP;       /* 复用推挽输出 */
+    gpio_init_struct.Pull = GPIO_NOPULL;           /* 无上下拉 */
+    gpio_init_struct.Speed = GPIO_SPEED_FREQ_HIGH; /* 高速 */
+    gpio_init_struct.Alternate = GPIO_AF2_TIM3;    /* TIM3复用功能 */
+    HAL_GPIO_Init(GPIOA, &gpio_init_struct);
+
+    /* 配置PB0为编码器通道C */
+    gpio_init_struct.Pin = GPIO_PIN_0;
+    gpio_init_struct.Mode = GPIO_MODE_AF_PP;       /* 复用推挽输出 */
+    gpio_init_struct.Pull = GPIO_NOPULL;           /* 无上下拉 */
+    gpio_init_struct.Speed = GPIO_SPEED_FREQ_HIGH; /* 高速 */
+    gpio_init_struct.Alternate = GPIO_AF2_TIM3;    /* TIM3复用功能 */
+    HAL_GPIO_Init(GPIOB, &gpio_init_struct);
+
+    /* TIM3 基本配置 */
+    htim3.Instance = TIM3;
+    htim3.Init.Prescaler = 0;                          /* 不分频 */
+    htim3.Init.CounterMode = TIM_COUNTERMODE_UP;       /* 向上计数 */
+    htim3.Init.Period = 65535;                         /* 自动重装载值 */
+    htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1; /* 时钟不分频 */
+    htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    HAL_TIM_IC_Init(&htim3);
+
+    /* 编码器模式配置 */
+    tim_encoder_init_struct.EncoderMode = TIM_ENCODERMODE_TI12; /* TI1 TI2 计数 */
+
+    /* 通道1配置（编码器A相） */
+    tim_encoder_init_struct.IC1Polarity = TIM_ICPOLARITY_RISING; /* 上升沿捕获 */
+    tim_encoder_init_struct.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+    tim_encoder_init_struct.IC1Prescaler = TIM_ICPSC_DIV1; /* 不分频 */
+    tim_encoder_init_struct.IC1Filter = 0;                 /* 无滤波 */
+
+    /* 通道2配置（编码器B相） */
+    tim_encoder_init_struct.IC2Polarity = TIM_ICPOLARITY_RISING; /* 上升沿捕获 */
+    tim_encoder_init_struct.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+    tim_encoder_init_struct.IC2Prescaler = TIM_ICPSC_DIV1; /* 不分频 */
+    tim_encoder_init_struct.IC2Filter = 0;                 /* 无滤波 */
+    HAL_TIM_Encoder_Init(&htim3, &tim_encoder_init_struct);
+
+    /* 主从模式配置 */
+    tim_master_init_struct.MasterOutputTrigger = TIM_TRGO_RESET; /* TRGO输出触发源 */
+    tim_master_init_struct.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    HAL_TIMEx_MasterConfigSynchronization(&htim3, &tim_master_init_struct);
+
+    /* 通道3 输入捕获配置 */
+    tim_ic_init_struct.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING; /* 上升沿捕获 */
+    tim_ic_init_struct.ICSelection = TIM_ICSELECTION_DIRECTTI;       /* 直接模式 */
+    tim_ic_init_struct.ICPrescaler = TIM_ICPSC_DIV2;                 /* 2分频 */
+    tim_ic_init_struct.ICFilter = 0;                                 /* 无滤波 */
+    HAL_TIM_IC_ConfigChannel(&htim3, &tim_ic_init_struct, TIM_CHANNEL_3);
+
+    /* 中断配置 */
+    HAL_NVIC_SetPriority(TIM3_IRQn, 3, 0); /* 中断优先级 */
+    HAL_NVIC_EnableIRQ(TIM3_IRQn);         /* 使能 TIM3 中断 */
+}
+
+void tim3_start(void)
+{
+    HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL); /* 启动编码器模式 */
+    HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);     /* 启动通道3输入捕获中断 */
+}
+
+/* TIM3 中断服务程序 */
+void TIM3_IRQHandler(void)
+{
+    HAL_TIM_IRQHandler(&htim3);
+}
+
+/**
+ * @brief TIM3 输入捕获回调函数（Z相脉冲捕获）
+ * @note 捕获到Z相脉冲时，可以用于零位校准
+ */
+// void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+// {
+//     if (htim->Instance == TIM3)
+//     {
+//         if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3)
+//         {
+//             /* 读取捕获值 */
+//             ic3_capture_value = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_3);
+//             ic3_capture_flag = 1;
+
+//             /* 可选：Z相脉冲时重置位置为0（零位校准） */
+//             // encoder_position = 0;
+//             // __HAL_TIM_SET_COUNTER(&htim3, 0);
+//         }
+//     }
+// }

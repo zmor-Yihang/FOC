@@ -139,6 +139,13 @@ void adc1_start_injected(void)
     HAL_ADCEx_InjectedStart_IT(&hadc1);
 }
 
+
+/* adc结果转换函数 */
+
+
+
+
+/* ADC中断处理函数 */
 void ADC1_2_IRQHandler(void)
 {
     HAL_ADC_IRQHandler(&hadc1);

@@ -3,21 +3,28 @@
 
 #include "stm32g4xx_hal.h"
 
-// 三相坐标 (用于 U-V-W 电流或电压)
-typedef struct {
-    float axis_1; // U
-    float axis_2; // V
-    float axis_3; // W
-} phase3_t;
+typedef struct
+{
+    float a; // U
+    float b; // V
+    float c; // W
+} abc_t;
 
-/* 两相坐标 (Alpha-Beta 或 D-Q) */
-typedef struct {
-    float axis_1; // Alpha 或 D
-    float axis_2; // Beta  或 Q
-} phase2_t;
+typedef struct
+{
+    float alpha;
+    float beta;
+} alphabeta_t;
+
+typedef struct
+{
+    float d;
+    float q;
+} dq_t;
 
 /* PID控制器结构体 */
-typedef struct {
+typedef struct
+{
     float kp; // 比例系数
     float ki; // 积分系数
     float kd; // 微分系数 (电流环通常不用，速度环可能用)
@@ -33,7 +40,8 @@ typedef struct {
 } pid_controller_t;
 
 /* 传感器反馈结构体 */
-typedef struct {
+typedef struct
+{
     uint16_t raw_count; // 编码器/磁编码器原始值
 
     // 角度信息
@@ -51,7 +59,8 @@ typedef struct {
 } sensor_feedback_t;
 
 /* 电机参数结构体 */
-typedef struct {
+typedef struct
+{
     int pole_pairs;      // 极对数
     float Rs;            // 相电阻 (Ohm)
     float Ls;            // 相电感 (H)
@@ -60,7 +69,8 @@ typedef struct {
 } motor_param_t;
 
 // FOC 运行状态
-typedef enum {
+typedef enum
+{
     FOC_STATE_IDLE,        // 空闲/停止
     FOC_STATE_CALIBRATION, // 电流偏置校准
     FOC_STATE_ALIGNMENT,   // 角度对齐 (强拖)
@@ -69,10 +79,11 @@ typedef enum {
 } foc_state_e;
 
 // 核心控制对象
-typedef struct {
+typedef struct
+{
     // --- 状态管理 ---
     foc_state_e state;
-    
+
     // 母线电压
     float dc_bus_voltage;
 
@@ -83,12 +94,11 @@ typedef struct {
     sensor_feedback_t sensor;
 
     // --- 电流采样 (ADC 转换后的物理量) ---
-    phase3_t current_meas; // Ia, Ib, Ic (Measured)
+    abc_t current_meas; // Ia, Ib, Ic (Measured)
 
     // --- 坐标变换变量 ---
-    phase2_t i_alphabeta; // Clark变换后
-    phase2_t i_dq;        // Park变换后 (实际反馈值 Id, Iq)
-
+    alphabeta_t i_alphabeta; // Clark变换后
+    dq_t i_dq;        // Park变换后 (实际反馈值 Id, Iq)
     // --- 指令值 (Target) ---
     float target_speed;
     float target_Id; // 通常为0 (MTPA除外)
@@ -100,9 +110,9 @@ typedef struct {
     pid_controller_t pid_speed; // 速度环
 
     // --- 输出计算 ---
-    phase2_t u_dq;        // 电流环PID输出电压)
-    phase2_t u_alphabeta; // 反Park变换后
-    phase3_t duty_cycle;  // SVPWM计算出的占空比 (CCR值)
+    dq_t u_dq;        // 电流环PID输出电压)
+    alphabeta_t u_alphabeta; // 反Park变换后
+    abc_t duty_cycle;  // SVPWM计算出的占空比 (CCR值)
 
 } foc_t;
 

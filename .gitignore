@@ -14,3 +14,5 @@
 *.ept
 *.eide-template
 
+/.eide
+
