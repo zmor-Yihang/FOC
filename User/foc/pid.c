@@ -16,7 +16,7 @@ void pid_init(pid_controller_t *pid, float kp, float ki, float kd, float out_max
     pid->kd = kd;
 
     pid->error = 0.0f;
-    pid->error_prev = 0.0f;
+    pid->error_last = 0.0f;
     pid->integral = 0.0f;
 
     pid->out = 0.0f;
@@ -28,7 +28,7 @@ void pid_init(pid_controller_t *pid, float kp, float ki, float kd, float out_max
 }
 
 /**
- * @brief PID计算（位置式PID）
+ * @brief PID计算, 位置式PID
  * @param pid PID控制器结构体指针
  * @param setpoint 设定值
  * @param feedback 反馈值
@@ -47,10 +47,10 @@ float pid_calculate(pid_controller_t *pid, float setpoint, float feedback)
     /* 比例项 */
     proportional = pid->kp * pid->error;
 
-    /* 积分项（带抗饱和） */
+    /* 积分项 */
     pid->integral += pid->ki * pid->error;
 
-    /* 积分限幅（抗积分饱和） */
+    /* 积分限幅 */
     if (pid->integral > pid->integral_max)
     {
         pid->integral = pid->integral_max;
@@ -61,7 +61,7 @@ float pid_calculate(pid_controller_t *pid, float setpoint, float feedback)
     }
 
     /* 微分项 */
-    derivative = pid->kd * (pid->error - pid->error_prev);
+    derivative = pid->kd * (pid->error - pid->error_last);
 
     /* PID输出 = 比例 + 积分 + 微分 */
     pid->out = proportional + pid->integral + derivative;
@@ -77,7 +77,7 @@ float pid_calculate(pid_controller_t *pid, float setpoint, float feedback)
     }
 
     /* 保存当前误差到历史 */
-    pid->error_prev = pid->error;
+    pid->error_last = pid->error;
 
     return pid->out;
 }
@@ -90,7 +90,7 @@ float pid_calculate(pid_controller_t *pid, float setpoint, float feedback)
 void pid_reset(pid_controller_t *pid)
 {
     pid->error = 0.0f;
-    pid->error_prev = 0.0f;
+    pid->error_last = 0.0f;
     pid->integral = 0.0f;
     pid->out = 0.0f;
 }

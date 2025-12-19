@@ -5,6 +5,7 @@
 
 #include "./bsp/adc.h"
 #include "./bsp/usart.h"
+#include "./bsp/tim.h"
 #include "./utils/vofa.h"
 
 /**

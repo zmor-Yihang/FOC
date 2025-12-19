@@ -24,10 +24,10 @@
 #include "test/test_adc.h"
 #include "test/test_tim1.h"
 #include "test/test_svpwm.h"
-#include "test/test_tim3.h"
+#include "test/test_tim1.h"
+#include "test/test_pid.h"
 
-
-
+#include "test/test_as5047.h"
 
 
 #endif /* __MAIN_H__ */
