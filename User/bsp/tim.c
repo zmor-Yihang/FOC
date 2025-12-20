@@ -11,7 +11,8 @@ void tim1_init(void)
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
 
-    GPIO_InitTypeDef gpio_init_struct = {0};                    /* GPIO初始化结构体 */
+    GPIO_InitTypeDef gpio_init_struct = {0}; /* GPIO初始化结构体 */
+
     TIM_MasterConfigTypeDef tim1_master_init_struct = {0};      /* TIM1主从模式配置结构体 */
     TIM_OC_InitTypeDef tim1_oc_init_struct = {0};               /* TIM1输出比较配置结构体 */
     TIM_BreakDeadTimeConfigTypeDef tim1_bdtr_init_struct = {0}; /* TIM1刹车和死区配置结构体 */
@@ -43,12 +44,16 @@ void tim1_init(void)
     /* 配置TIM1基本参数 */
     htim1.Instance = TIM1;
     htim1.Init.Prescaler = TIM1_PRESCALER;                        /* 预分频值 */
-    htim1.Init.Period = TIM1_PERIOD - 1;                          /* 自动重装载值 */
-    htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED2;      /* 中心对齐模式2：向上和向下计数时都产生中断 */
+    htim1.Init.Period = TIM1_PERIOD;                              /* 自动重装载值：源码用8400，不是8400-1 */
+    htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED1;      /* 中心对齐模式1：与源码一致 */
     htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;            /* 时钟分频因子 */
-    htim1.Init.RepetitionCounter = 0;                             /* 重复计数器：每次溢出都产生更新事件 */
+    htim1.Init.RepetitionCounter = 1;                             /* 重复计数器：源码用1，每2次溢出更新一次 */
     htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE; /* 使能自动重装载预装载 */
-    HAL_TIM_PWM_Init(&htim1);                                     /* 初始化TIM1 PWM模式 */
+    HAL_TIM_Base_Init(&htim1);                                    /* 先初始化Base */
+
+    // sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    // HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig);
+    HAL_TIM_PWM_Init(&htim1); /* 初始化TIM1 PWM模式 */
 
     /* 配置TIM1为主模式，触发ADC采样 */
     tim1_master_init_struct.MasterOutputTrigger = TIM_TRGO_UPDATE; /* 设置TRGO输出触发源为更新事件 */
@@ -57,13 +62,13 @@ void tim1_init(void)
     HAL_TIMEx_MasterConfigSynchronization(&htim1, &tim1_master_init_struct);
 
     /* 配置输出比较通道参数 */
-    tim1_oc_init_struct.OCMode = TIM_OCMODE_PWM2;
+    tim1_oc_init_struct.OCMode = TIM_OCMODE_PWM2;              /* PWM模式1：CNT<CCR时输出有效电平 */
     tim1_oc_init_struct.OCIdleState = TIM_OCIDLESTATE_RESET;   /* 主通道空闲状态为低电平 */
     tim1_oc_init_struct.OCNIdleState = TIM_OCNIDLESTATE_RESET; /* 互补通道空闲状态为低电平 */
     tim1_oc_init_struct.OCPolarity = TIM_OCPOLARITY_HIGH;      /* 主通道输出极性为高 */
     tim1_oc_init_struct.OCNPolarity = TIM_OCNPOLARITY_HIGH;    /* 互补通道输出极性为高 */
     tim1_oc_init_struct.OCFastMode = TIM_OCFAST_DISABLE;       /* 禁用快速模式 */
-    tim1_oc_init_struct.Pulse = TIM1_PERIOD / 1;               /* 初始占空比10% */
+    tim1_oc_init_struct.Pulse = TIM1_PERIOD / 2;               /* 初始占空比50% */
     HAL_TIM_PWM_ConfigChannel(&htim1, &tim1_oc_init_struct, TIM_CHANNEL_1);
     HAL_TIM_PWM_ConfigChannel(&htim1, &tim1_oc_init_struct, TIM_CHANNEL_2);
     HAL_TIM_PWM_ConfigChannel(&htim1, &tim1_oc_init_struct, TIM_CHANNEL_3);
@@ -83,6 +88,7 @@ void tim1_init(void)
     HAL_TIMEx_ConfigBreakDeadTime(&htim1, &tim1_bdtr_init_struct);
 
     /* 启动PWM输出 */
+    HAL_TIM_Base_Start(&htim1);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);

@@ -1,179 +1,219 @@
 #include "foc.h"
-#include <math.h>
 
-/* ==================== 全局FOC控制对象 ==================== */
-foc_controller_t g_foc;
-
-/* ==================== 内部辅助函数 ==================== */
-
-/**
- * @brief  保护检测
- */
-static void foc_check_protection(void)
+void foc_init(foc_t *handle, pid_controller_t *pid_id, pid_controller_t *pid_iq, pid_controller_t *pid_speed)
 {
-    float max_current = g_foc.core.param.rated_current * 1.5f; /* 1.5倍额定电流 */
+    handle->pole_pairs = MOTOR_POLES; // 设置电机极对数
+    handle->target_speed = 0;
+    handle->target_Id = 0;
+    handle->target_Iq = 0;
 
-    /* 过流保护 */
-    if (fabsf(g_foc.core.current_meas.a) > max_current ||
-        fabsf(g_foc.core.current_meas.b) > max_current ||
-        fabsf(g_foc.core.current_meas.c) > max_current)
-    {
-        g_foc.error = FOC_ERR_OVERCURRENT;
-        g_foc.state = FOC_STATE_ERROR;
-        return;
-    }
+    /* 初始化电流采样值 */
+    handle->i_abc.a = 0.0f;
+    handle->i_abc.b = 0.0f;
+    handle->i_abc.c = 0.0f;
 
-    /* 过压保护 */
-    if (g_foc.core.dc_bus_voltage > g_foc.core.param.rated_voltage * 1.2f)
-    {
-        g_foc.error = FOC_ERR_OVERVOLTAGE;
-        g_foc.state = FOC_STATE_ERROR;
-        return;
-    }
+    /* 初始化Clark变换后的电流值 */
+    handle->i_alphabeta.alpha = 0.0f;
+    handle->i_alphabeta.beta = 0.0f;
 
-    /* 欠压保护 */
-    if (g_foc.core.dc_bus_voltage < g_foc.core.param.rated_voltage * 0.5f &&
-        g_foc.core.dc_bus_voltage > 1.0f) /* 防止未上电时误报 */
-    {
-        g_foc.error = FOC_ERR_UNDERVOLTAGE;
-        g_foc.state = FOC_STATE_ERROR;
-        return;
-    }
+    /* 初始化Park变换后的电流值 */
+    handle->i_dq.d = 0.0f;
+    handle->i_dq.q = 0.0f;
+
+    /* 初始化电压控制量 */
+    handle->v_d = 0.0f;
+    handle->v_q = 0.0f;
+
+    /* 初始化Park变换后的电压值 */
+    handle->v_alpha = 0.0f;
+    handle->v_beta = 0.0f;
+
+    /* 初始化零点偏移 */
+    handle->zero_offset = 0.0f;
+
+    /* 初始化母线电压为默认值 */
+    handle->vbus = 13.15f; // 默认13.15V
+
+    /* 初始化PID控制器指针 */
+    handle->pid_id = pid_id;
+    handle->pid_iq = pid_iq;
+    handle->pid_speed = pid_speed;
+
+    /* 初始化占空比为0 */
+    handle->duty_cycle.a = 0.0f;
+    handle->duty_cycle.b = 0.0f;
+    handle->duty_cycle.c = 0.0f;
 }
 
-
-/**
- * @brief  启动FOC
- */
-void foc_start(void)
+void foc_set_target_speed(foc_t *handle, float speed_rpm)
 {
-    if (g_foc.state == FOC_STATE_READY || g_foc.state == FOC_STATE_IDLE)
-    {
-        /* 复位所有控制器 */
-        foc_reset_controllers();
-
-        /* 清零开环角度 */
-        g_foc.openloop_angle = 0.0f;
-
-        /* 切换到运行状态 */
-        g_foc.state = FOC_STATE_RUNNING;
-    }
+    handle->target_speed = speed_rpm;
 }
 
-/**
- * @brief  停止FOC
- */
-void foc_stop(void)
+void foc_set_target_currents(foc_t *handle, float Id, float Iq)
 {
-    /* 设置占空比为50% (零输出) */
-    tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
-
-    /* 复位控制器 */
-    foc_reset_controllers();
-
-    /* 清零目标值 */
-    g_foc.core.target_speed = 0.0f;
-    g_foc.core.target_Iq = 0.0f;
-    g_foc.core.target_Id = 0.0f;
-
-    g_foc.state = FOC_STATE_READY;
+    handle->target_Id = Id;
+    handle->target_Iq = Iq;
 }
 
-/**
- * @brief  紧急停止
- */
-void foc_emergency_stop(void)
+void foc_alignment(foc_t *handle)
 {
-    /* 立即停止PWM输出 */
-    tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
 
-    g_foc.state = FOC_STATE_IDLE;
-}
+    printf("Motor Alignment Start...\r\n");
 
-
-/**
- * @brief  速度环控制
- */
-void foc_speed_loop(void)
-{
-    /* 读取速度 */
-    g_foc.speed_rpm = as5047_read_speed_rpm();
-    g_foc.speed_rad_s = as5047_read_speed_rad_s();
-
-    /* 速度滤波 */
-    g_foc.speed_filtered = FOC_SPEED_FILTER_ALPHA * g_foc.speed_rpm +
-                           (1.0f - FOC_SPEED_FILTER_ALPHA) * g_foc.speed_filtered;
-
-    /* 速度环PID计算，输出为Iq参考 */
-    g_foc.core.target_Iq = pid_calculate(&g_foc.core.pid_speed,
-                                         g_foc.core.target_speed,
-                                         g_foc.speed_filtered);
-
-    /* Id参考通常为0 (非弱磁控制) */
-    g_foc.core.target_Id = 0.0f;
-}
-
-/* ==================== 电流环控制 ==================== */
-
-/**
- * @brief  电流环控制
- */
-void foc_current_loop(void)
-{
-    /* D轴电流环 */
-    g_foc.core.u_dq.d = pid_calculate(&g_foc.core.pid_id,
-                                      g_foc.core.target_Id,
-                                      g_foc.core.i_dq.d);
-
-    /* Q轴电流环 */
-    g_foc.core.u_dq.q = pid_calculate(&g_foc.core.pid_iq,
-                                      g_foc.core.target_Iq,
-                                      g_foc.core.i_dq.q);
-
-    /* 电压幅值限制 (防止过调制) */
-    float u_abs = sqrtf(g_foc.core.u_dq.d * g_foc.core.u_dq.d +
-                        g_foc.core.u_dq.q * g_foc.core.u_dq.q);
-
-    if (u_abs > 1.0f)
-    {
-        g_foc.core.u_dq.d /= u_abs;
-        g_foc.core.u_dq.q /= u_abs;
-    }
-}
-
-
-/* ==================== FOC 主循环 ==================== */
-
-/**
- * @brief  FOC主循环 - 在TIM1中断中调用
- */
-void foc_loop(void)
-{
-    /* 1. 电流采样和滤波 */
-    foc_sample_current();
-
-    /* 2. 保护检测 */
-    foc_check_protection();
+    /* 读取母线电压 */
+    adc1_start_regular_dma();
+    HAL_Delay(100); // 等待DMA转换完成
     
-    if (g_foc.state == FOC_STATE_ERROR)
+    adc_values_t adc_vals = {0};
+    adc1_value_convert((uint16_t *)adc_regular_buf, &adc_vals);
+    handle->vbus = adc_vals.udc;
+
+    printf("Bus Voltage: %.2fV\r\n", handle->vbus);
+
+    /* 1. 准备阶段：设置目标电压矢量指向 D 轴 (电角度 0 度) */
+    /* 注意：电压不要给太大，防止电机过热烧毁！通常给母线电压的 10%~20% */
+    /* 归一化电压：实际电压 / 母线电压 */
+    handle->v_d = 2.0f / handle->vbus;
+    handle->v_q = 0.0f;
+
+    printf("Alignment voltage: %.2fV (normalized: %.3f)\r\n", 2.0f, handle->v_d);
+
+    /* 强制设定电角度为 0，用于 Park 逆变换 */
+    /* 因为我们要产生一个固定在 0 度的磁场 */
+    float align_angle = 0.0f;
+
+    /* 2. 执行阶段：持续输出一段时间，让转子对齐到电角度0位置 */
+    int align_steps = 2000 / 2; // 总对齐时间除以每步延时
+
+    for (int i = 0; i < align_steps; i++)
     {
-        foc_emergency_stop();
-        return;
+        /* 反 Park 变换 (输入 Vd, Vq, 角度=0) -> 得到 V_alpha, V_beta */
+        dq_t v_dq = {handle->v_d, handle->v_q};
+        alphabeta_t v_alphabeta = ipark_transform(v_dq, align_angle);
+        handle->v_alpha = v_alphabeta.alpha;
+        handle->v_beta = v_alphabeta.beta;
+
+        /* 反 Clark 变换 -> 得到三相电压 */
+        abc_t v_abc = iclark_transform(v_alphabeta);
+
+        /* SVPWM 计算 -> 得到三相占空比 */
+        handle->duty_cycle = svpwm_update(v_abc);
+
+        /* 调用底层驱动设置 PWM 寄存器 */
+        tim1_set_pwm_duty(handle->duty_cycle.a, handle->duty_cycle.b, handle->duty_cycle.c);
+
+        HAL_Delay(2);
     }
 
+    /* 3. 读取阶段：记录偏移量 */
+    /* 此时电机应该已经对齐到电角度 0 度位置 */
+    /* 读取编码器的机械角度原始值 */
+    float raw_angle = as5047_read_angle_rad();
 
-    foc_coordinate_transform();
+    handle->zero_offset = raw_angle;
 
-    /* 速度环分频执行 */
-    g_foc.speed_loop_cnt++;
-    if (g_foc.speed_loop_cnt >= FOC_SPEED_LOOP_DIVIDER)
-    {
-        g_foc.speed_loop_cnt = 0;
-        foc_speed_loop();
-    }
+    printf("Alignment Done. Offset = %.4f rad\r\n", handle->zero_offset);
 
-    foc_current_loop();
-    foc_output_voltage();
+    /* 4. 结束阶段：归零输出 */
+    handle->v_d = 0.0f;
+    handle->v_q = 0.0f;
+    tim1_set_pwm_duty(0.0f, 0.0f, 0.0f);
 }
 
+void foc_loop(foc_t *handle, float angle_el, abc_t *i_abc, uint16_t speed_rpm)
+{
+    // TODO: 实现FOC闭环控制逻辑
+    // 这里应该包含完整的FOC控制流程：
+    // 1. 电流环控制（Id, Iq控制）
+    // 2. 速度环控制（如果需要速度控制）
+    // 3. Park/Clark变换
+    // 4. SVPWM调制
+    // 5. PWM输出
+}
 
+void foc_open_loop(foc_t *handle, float voltage, float angle_rad_el)
+{
+    /* 限制电压幅值 */
+    if (voltage > 1.0f)
+        voltage = 1.0f;
+    if (voltage < 0.0f)
+        voltage = 0.0f;
+
+    /* 使用反Park变换计算Alpha-Beta电压 */
+    dq_t v_dq = {0.0f, voltage}; /* Vd=0, Vq=voltage */
+    alphabeta_t v_ab = ipark_transform(v_dq, angle_rad_el);
+
+    /* 使用反Clark变换计算ABC电压 */
+    abc_t v_abc = iclark_transform(v_ab);
+
+    /* SVPWM调制 */
+    abc_t duty = svpwm_update(v_abc);
+
+    /* 输出PWM */
+    tim1_set_pwm_duty(duty.a, duty.b, duty.c);
+}
+
+void foc_simulate_rotation(foc_t *handle, float voltage, float speed_rpm, uint32_t duration_ms)
+{
+    uint32_t start_time, current_time;
+    float angle_mechanical = 0.0f;
+    float angle_electrical = 0.0f;
+    float speed_rad_per_sec;
+    
+    /* 转换转速单位：RPM -> rad/s */
+    speed_rad_per_sec = speed_rpm * 2.0f * 3.14159265359f / 60.0f;
+    
+    /* 获取开始时间 */
+    start_time = HAL_GetTick();
+    
+    /* 旋转控制循环 */
+    while (1)
+    {
+        /* 获取当前时间 */
+        current_time = HAL_GetTick();
+        
+        /* 检查是否超时 */
+        if ((current_time - start_time) >= duration_ms)
+        {
+            break;
+        }
+        
+        /* 更新机械角度 (角度自增) */
+        angle_mechanical += speed_rad_per_sec * 0.001f;  // 假设1ms执行一次
+        
+        /* 保持角度在0-2π范围内 */
+        if (angle_mechanical >= 2.0f * 3.14159265359f)
+        {
+            angle_mechanical -= 2.0f * 3.14159265359f;
+        }
+        
+        /* 计算电角度 */
+        angle_electrical = angle_mechanical * handle->pole_pairs;
+        
+        /* 减去零点偏移 (如果已知) */
+        if (handle->zero_offset != 0.0f)
+        {
+            angle_electrical -= handle->zero_offset;
+            
+            /* 保持角度在0-2π范围内 */
+            if (angle_electrical < 0.0f)
+            {
+                angle_electrical += 2.0f * 3.14159265359f;
+            }
+            else if (angle_electrical >= 2.0f * 3.14159265359f)
+            {
+                angle_electrical -= 2.0f * 3.14159265359f;
+            }
+        }
+        
+        /* 开环控制 */
+        foc_open_loop(handle, voltage, angle_electrical);
+        
+        /* 延时1ms */
+        HAL_Delay(1);
+    }
+    
+    /* 停止电机 */
+    tim1_set_pwm_duty(0.0f, 0.0f, 0.0f);
+}

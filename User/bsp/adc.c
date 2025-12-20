@@ -130,6 +130,7 @@ void adc1_init(void)
 
     /* 开启注入组转换中断 */
     HAL_ADCEx_InjectedStart_IT(&hadc1);
+    
 }
 
 /* 软件触发规则组转换 */

@@ -27,8 +27,8 @@ abc_t iclark_transform(alphabeta_t alpha_beta)
     // Ib = -iα/2 + (√3/2)iβ
     abc.b = -0.5f * alpha_beta.alpha + sqrt3_by_2 * alpha_beta.beta;
 
-    // Ic = -iα/2 - (√3/2)iβ
-    abc.c = -alpha_beta.alpha - alpha_beta.beta;
+    // Ic = -Ia - Ib
+    abc.c = -abc.a - abc.b;
 
     return abc;
 }

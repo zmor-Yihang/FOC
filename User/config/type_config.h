@@ -68,10 +68,22 @@ typedef struct
     float target_Id;
     float target_Iq;
 
+    /* 电压控制量 */
+    float v_d;           /* D轴目标电压 */
+    float v_q;           /* Q轴目标电压 */
+    float v_alpha;       /* Alpha轴电压 (反Park变换后) */
+    float v_beta;        /* Beta轴电压 (反Park变换后) */
+
+    /* 零点偏移 */
+    float zero_offset;   /* 编码器零点偏移角度 (rad) */
+
+    /* 母线电压 */
+    float vbus;          /* 母线电压 (V) */
+
     /* PID控制器 */
-    pid_controller_t pid_id;    /* D轴电流环 */
-    pid_controller_t pid_iq;    /* Q轴电流环 */
-    pid_controller_t pid_speed; /* 速度环 */
+    pid_controller_t *pid_id;    /* D轴电流环 */
+    pid_controller_t *pid_iq;    /* Q轴电流环 */
+    pid_controller_t *pid_speed; /* 速度环 */
 
     /* 输出占空比 */
     abc_t duty_cycle; /* SVPWM计算出的占空比 */
