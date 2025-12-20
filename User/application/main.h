@@ -2,6 +2,7 @@
 #define __MAIN_H__
 
 #include "stm32g4xx_hal.h"
+#include "config/type_config.h"
 
 #include <string.h>
 #include <stdio.h>

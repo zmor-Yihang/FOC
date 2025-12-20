@@ -25,19 +25,17 @@ int main(void)
     pid_init(&pid_iq, 0.1f, 0.01f, 0.0f, 5.0f, -5.0f);
     pid_init(&pid_speed, 1.0f, 0.1f, 0.0f, 5.0f, -5.0f);
     foc_init(&hfoc, &pid_id, &pid_iq, &pid_speed);
--
-    adc_values_t adc_vals = {0};
-    adc1_calibrate_zero(&adc_vals); // 校准ADC1零点
 
-    // 运行开环测试
-    // test_open_loop();
+    adc_values_t adc_values = {0};
+    adc1_calibrate_zero(&adc_values); // 校准ADC1零点
+
     foc_alignment(&hfoc);
+   
 
-
-    test_rotation_simulation();
+    // test_rotation_simulation();
     while (1)
     {
-
+        //  foc_open_loop(&hfoc, 0.2, 0);
+         HAL_Delay(100);
     }
 }
-------------------------------
