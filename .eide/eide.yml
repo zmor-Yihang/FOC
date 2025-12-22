@@ -27,7 +27,8 @@ targets:
         - Drivers/startup/src_stm32g4
         - User
       libList: []
-    excludeList: []
+    excludeList:
+      - User/test/test_adc.c
     toolchain: GCC
     toolchainConfigMap:
       AC6:

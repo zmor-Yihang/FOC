@@ -4,12 +4,16 @@
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
-/* ADC DMA缓冲区 */
+/* 规则组缓冲区 */
 uint16_t adc_regular_buf[4] = {0};
 
 /* 注入组数据缓冲区 */
-volatile uint16_t adc_injected_buf[4] = {0};
+uint16_t adc_injected_buf[4] = {0};
 
+/* 三相电流零点补偿 */
+adc_offset_t adc_offset = {0};
+
+/* adc1初始化 + 校准零点 */
 void adc1_init(void)
 {
     /* 使能时钟 */
@@ -130,7 +134,27 @@ void adc1_init(void)
 
     /* 开启注入组转换中断 */
     HAL_ADCEx_InjectedStart_IT(&hadc1);
-    
+
+
+    /* 开启规则组转换进行电流零点对齐(电流采样补偿, 准确说不是校准) */
+    adc1_start_regular_dma();
+
+    HAL_Delay(100);
+
+    for (uint16_t i = 0; i < 5000; i++)
+    {
+        float ia_volt = adc_regular_buf[0] * 3.3f / 4096.0f;
+        float ib_volt = adc_regular_buf[1] * 3.3f / 4096.0f;
+        float ic_volt = adc_regular_buf[2] * 3.3f / 4096.0f;
+
+        adc_offset.ia_offset = adc_offset.ia_offset * 0.998f + ia_volt * 0.002f;
+        adc_offset.ib_offset = adc_offset.ib_offset * 0.998f + ib_volt * 0.002f;
+        adc_offset.ic_offset = adc_offset.ic_offset * 0.998f + ic_volt * 0.002f;
+
+        HAL_Delay(1);
+    }
+
+    HAL_ADC_Stop_DMA(&hadc1);
 }
 
 /* 软件触发规则组转换 */
@@ -139,62 +163,48 @@ void adc1_start_regular_dma(void)
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_regular_buf, 4);
 }
 
+void adc1_stop_regular_dma(void)
+{
+    HAL_ADC_Stop_DMA(&hadc1);
+}
+
+/* 开启注入组转换 */
+void adc1_start_injected(void)
+{
+    HAL_ADCEx_InjectedStart_IT(&hadc1);
+}
+
 /* 停止注入组转换 */
 void adc1_stop_injected(void)
 {
     HAL_ADCEx_InjectedStop_IT(&hadc1);
 }
 
-
-/**
- * @brief ADC零点动态校准
- * @param values: ADC值结构体
- * @note 在ADC初始化后调用一次即可，内部自动完成5000次采样
- */
-void adc1_calibrate_zero(adc_values_t *values)
-{
-    adc1_start_regular_dma();
-    HAL_Delay(100); // 等待采样稳定
-
-    // 循环5000次进行低通滤波
-    for (uint16_t i = 0; i < 5000; i++)
-    {
-        // 计算当前电压值
-        float ia_volt = adc_regular_buf[0] * 3.3f / 4096.0f;
-        float ib_volt = adc_regular_buf[1] * 3.3f / 4096.0f;
-        float ic_volt = adc_regular_buf[2] * 3.3f / 4096.0f;
-
-        // 一阶低通滤波器累积零点
-        values->ia_offset = values->ia_offset * 0.998f + ia_volt * 0.002f;
-        values->ib_offset = values->ib_offset * 0.998f + ib_volt * 0.002f;
-        values->ic_offset = values->ic_offset * 0.998f + ic_volt * 0.002f;
-        
-        HAL_Delay(1);  // 延时1ms，总耗时5秒
-    }
-}
-
-void adc1_value_convert(uint16_t *adc_buf, adc_values_t *values)
+/* 转换原始ADC值为实际电流和电压 */
+static void adc1_value_convert(uint16_t *adc_buf, adc_values_t *adc_values_converted)
 {
     float voltage;
 
-    // 电流转换（使用结构体内的零点）
     voltage = adc_buf[0] * 3.3f / 4096.0f;
-    values->ia = -ADC_CURRENT_SCALE * (voltage - values->ia_offset);
+    adc_values_converted->ia = -ADC_CURRENT_SCALE * (voltage - adc_offset.ia_offset);
 
     voltage = adc_buf[1] * 3.3f / 4096.0f;
-    values->ib = -ADC_CURRENT_SCALE * (voltage - values->ib_offset);
+    adc_values_converted->ib = -ADC_CURRENT_SCALE * (voltage - adc_offset.ib_offset);
 
     voltage = adc_buf[2] * 3.3f / 4096.0f;
-    values->ic = -ADC_CURRENT_SCALE * (voltage - values->ic_offset);
+    adc_values_converted->ic = -ADC_CURRENT_SCALE * (voltage - adc_offset.ic_offset);
 
-    // 母线电压转换
-    values->udc = ADC_UDC_SCALE * (adc_buf[3] * 3.3f / 4096.0f);
+    adc_values_converted->udc = ADC_UDC_SCALE * (adc_buf[3] * 3.3f / 4096.0f);
 }
 
-/* DMA中断处理函数 */
-void DMA1_Channel1_IRQHandler(void)
+void adc1_get_regular_values(adc_values_t *values)
 {
-    HAL_DMA_IRQHandler(&hdma_adc1);
+    adc1_value_convert(adc_regular_buf, values);
+}
+
+void adc1_get_injected_values(adc_values_t *values)
+{
+    adc1_value_convert(adc_injected_buf, values);
 }
 
 /* ADC注入组转换完成中断处理函数 */

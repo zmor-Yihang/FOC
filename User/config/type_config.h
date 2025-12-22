@@ -46,11 +46,15 @@ typedef struct
     float ib;
     float ic;
     float udc;
+} adc_values_t;
 
+/* 三相电流零点补偿值 */
+typedef struct
+{
     float ia_offset;
     float ib_offset;
     float ic_offset;
-} adc_values_t;
+} adc_offset_t;
 
 /* 核心控制对象 */
 typedef struct
@@ -69,16 +73,16 @@ typedef struct
     float target_Iq;
 
     /* 电压控制量 */
-    float v_d;           /* D轴目标电压 */
-    float v_q;           /* Q轴目标电压 */
-    float v_alpha;       /* Alpha轴电压 (反Park变换后) */
-    float v_beta;        /* Beta轴电压 (反Park变换后) */
+    float v_d;     /* D轴目标电压 */
+    float v_q;     /* Q轴目标电压 */
+    float v_alpha; /* Alpha轴电压 (反Park变换后) */
+    float v_beta;  /* Beta轴电压 (反Park变换后) */
 
     /* 零点偏移 */
-    float zero_offset;   /* 编码器零点偏移角度 (rad) */
+    float zero_offset; /* 编码器零点偏移角度 (rad) */
 
     /* 母线电压 */
-    float vbus;          /* 母线电压 (V) */
+    float vbus; /* 母线电压 (V) */
 
     /* PID控制器 */
     pid_controller_t *pid_id;    /* D轴电流环 */
