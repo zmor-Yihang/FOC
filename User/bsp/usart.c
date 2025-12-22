@@ -60,7 +60,7 @@ void usart1_init(void)
 
     /* 初始化UART参数 */
     huart1.Instance = USART1;                                     /* 指定USART1外设 */
-    huart1.Init.BaudRate = 500000;                                /* 波特率500000 */
+    huart1.Init.BaudRate = 460800;                                /* 波特率460800 */
     huart1.Init.WordLength = UART_WORDLENGTH_8B;                  /* 8位数据位 */
     huart1.Init.StopBits = UART_STOPBITS_1;                       /* 1位停止位 */
     huart1.Init.Parity = UART_PARITY_NONE;                        /* 无校验 */

@@ -8,8 +8,6 @@
  * - FMA 指令优化
  * - 多项式逼近方法
  * - 编译器特定的优化指令
- * 
- * 支持GCC (STM32CubeIDE) 和 Keil ARMCC编译器。
  */
 
 #ifndef __FAST_SIN_COS_H__

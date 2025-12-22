@@ -44,10 +44,10 @@ void tim1_init(void)
     /* 配置TIM1基本参数 */
     htim1.Instance = TIM1;
     htim1.Init.Prescaler = TIM1_PRESCALER;                        /* 预分频值 */
-    htim1.Init.Period = TIM1_PERIOD;                              /* 自动重装载值：源码用8400，不是8400-1 */
-    htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED1;      /* 中心对齐模式1：与源码一致 */
+    htim1.Init.Period = TIM1_PERIOD;                              /* 自动重装载值 */
+    htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED2;      /* 中心对齐模式1 */
     htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;            /* 时钟分频因子 */
-    htim1.Init.RepetitionCounter = 1;                             /* 重复计数器：源码用1，每2次溢出更新一次 */
+    htim1.Init.RepetitionCounter = 0;                             /* 溢出更新次数 */
     htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE; /* 使能自动重装载预装载 */
     HAL_TIM_Base_Init(&htim1);                                    /* 先初始化Base */
 

@@ -53,7 +53,7 @@ void led2_init(void)
     HAL_GPIO_Init(GPIOA, &gpio_init_struct);
 
     /* 初始化时默认关闭LED2 */
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
 }
 
 void led2_on(void)

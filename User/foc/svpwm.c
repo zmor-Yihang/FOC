@@ -2,7 +2,7 @@
 
 /**
  * @brief  SVPWM调制函数 (中心对齐PWM，带零序分量注入)
- * @param  u_abc - 输入的三相调制电压 (归一化, 范围 -1.0 ~ 1.0), u_abc / u_dc 归一化
+ * @param  u_abc - 输入的三相调制电压 (绝对电压值, 单位: V)
  * @retval  duty - 输出的三相占空比 (范围 0.0 ~ 1.0)
  */
 abc_t svpwm_update(abc_t u_abc)
@@ -10,7 +10,10 @@ abc_t svpwm_update(abc_t u_abc)
     abc_t duty;
     float u_max, u_min, u_zero;
 
-    // 找出三相电压的最大值和最小值
+    u_abc.a /= U_DC;
+    u_abc.b /= U_DC;
+    u_abc.c /= U_DC;
+
     u_max = u_abc.a;
     if (u_abc.b > u_max)
         u_max = u_abc.b;

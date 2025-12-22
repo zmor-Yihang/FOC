@@ -32,7 +32,7 @@ void pid_init(pid_controller_t *pid, float kp, float ki, float kd, float out_max
  * @param pid PID控制器结构体指针
  * @param setpoint 设定值
  * @param feedback 反馈值
- * @return 控制输出
+ * @return 控制输出, 范围[-out_max, out_max], 非归一化的值
  *
  * 位置式PID公式：
  * u(k) = Kp*e(k) + Ki*∑e(k) + Kd*[e(k) - e(k-1)]

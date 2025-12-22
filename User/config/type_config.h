@@ -3,6 +3,10 @@
 
 #include "stm32g4xx_hal.h"
 
+#define MOTOR_POLE_PAIR 7  /* 电机极对数 */
+
+#define U_DC 13.5f  /* 直流母线电压 (V) */
+
 typedef struct
 {
     float a; /* U */
@@ -46,22 +50,21 @@ typedef struct
     float ib;
     float ic;
     float udc;
+} adc_values_t;
 
+/* 三相电流零点补偿值 */
+typedef struct
+{
     float ia_offset;
     float ib_offset;
     float ic_offset;
-} adc_values_t;
+} adc_offset_t;
 
 /* 核心控制对象 */
 typedef struct
 {
-    /* 电机极对数 */
-    uint8_t pole_pairs;
-
     /* 电流采样值Ia, Ib, Ic */
     abc_t i_abc;
-    alphabeta_t i_alphabeta; /* clark变换后 */
-    dq_t i_dq;               /* park变换后 */
 
     /* 目标值 */
     float target_speed;
@@ -69,16 +72,9 @@ typedef struct
     float target_Iq;
 
     /* 电压控制量 */
-    float v_d;           /* D轴目标电压 */
-    float v_q;           /* Q轴目标电压 */
-    float v_alpha;       /* Alpha轴电压 (反Park变换后) */
-    float v_beta;        /* Beta轴电压 (反Park变换后) */
-
-    /* 零点偏移 */
-    float zero_offset;   /* 编码器零点偏移角度 (rad) */
-
-    /* 母线电压 */
-    float vbus;          /* 母线电压 (V) */
+    float v_d_out; /* D轴目标电压, 电流环输出，实际值 */
+    float v_q_out; /* Q轴目标电压, 电流环输出，实际值 */
+    float i_q_out; /* Q轴目标电流， 转速环输出 */
 
     /* PID控制器 */
     pid_controller_t *pid_id;    /* D轴电流环 */
@@ -86,7 +82,7 @@ typedef struct
     pid_controller_t *pid_speed; /* 速度环 */
 
     /* 输出占空比 */
-    abc_t duty_cycle; /* SVPWM计算出的占空比 */
+    abc_t duty_cycle; /* SVPWM计算出的占空比，归一化到[0, 1] */
 
 } foc_t;
 

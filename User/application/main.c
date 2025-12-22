@@ -6,36 +6,27 @@ int main(void)
     clock_init();
     usart1_init();
 
-    led1_init(); // 初始化LED1
-    led2_init(); // 初始化LED2
+    led1_init(); /* 初始化LED1 */
+    key_init();  /* 初始化按键 */
 
-    key_init(); // 初始化按键
+    led2_init(); /* 初始化LED2，使能PWM输出 */
 
-    as5047_init(); // 初始化AS5047P编码器
+    as5047_init(); /* 初始化AS5047P编码器 */
 
-    adc1_init(); // 初始化ADC1
+    tim3_init(); /* 初始化TIM3用于编码器接口 */
+    tim1_init(); /* 初始化TIM1用于PWM输出 */
 
-    tim3_init(); // 初始化TIM3用于编码器接口
-    tim1_init(); // 初始化TIM1用于PWM输出
+    adc1_init();     /* 初始化ADC1 */
+    foc_alignment(); /* 电机零点对齐 */
 
-    led2_on(); // 点亮LED2使能
-    foc_t hfoc;
-    pid_controller_t pid_id, pid_iq, pid_speed;
-    pid_init(&pid_id, 0.1f, 0.01f, 0.0f, 5.0f, -5.0f);
-    pid_init(&pid_iq, 0.1f, 0.01f, 0.0f, 5.0f, -5.0f);
-    pid_init(&pid_speed, 1.0f, 0.1f, 0.0f, 5.0f, -5.0f);
-    foc_init(&hfoc, &pid_id, &pid_iq, &pid_speed);
-
-    adc_values_t adc_values = {0};
-    adc1_calibrate_zero(&adc_values); // 校准ADC1零点
-
-    foc_alignment(&hfoc);
-   
-
-    // test_rotation_simulation();
     while (1)
     {
-        //  foc_open_loop(&hfoc, 0.2, 0);
-         HAL_Delay(100);
+
+        if (key_scan() == 1)
+        {
+            printf("Loop is exit!\n");
+            break;
+        }
+        HAL_Delay(100);
     }
 }
