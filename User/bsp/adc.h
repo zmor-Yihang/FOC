@@ -14,6 +14,8 @@ extern DMA_HandleTypeDef hdma_adc1;
 #define ADC_UDC_SCALE 25.0f /* Udc母线电压转换比例，单位V/bit */
 
 /* 函数声明 */
+extern volatile uint8_t adc_injected_cplt_flag;
+
 void adc1_init(void);
 
 void adc1_get_offset(adc_offset_t *offsets); /* 调试接口，仅供测试使用 */

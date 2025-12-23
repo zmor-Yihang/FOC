@@ -13,6 +13,4 @@
 # eide template
 *.ept
 *.eide-template
-
-/.eide
-
+.eide/eide.yml

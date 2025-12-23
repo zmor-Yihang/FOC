@@ -9,6 +9,6 @@
 #include "./bsp/key.h"
 #include "./bsp/tim.h"
 
-void test_current_closed_loop(foc_t *handle, pid_controller_t *pid_id, pid_controller_t *pid_iq);
+void test_current_closed_loop(void);
 
 #endif /* __TEST_CURRENT_CLOSED_LOOP_H__ */
