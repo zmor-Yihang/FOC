@@ -36,7 +36,7 @@ void foc_alignment()
     printf("Motor Alignment Start...\n");
 
     /* 对齐参数 */
-    float align_voltage = 0.1f; /* d轴加的电压 10% Udc */
+    float align_voltage = 4.0f; /* d轴加的电压 10% Udc */
     float align_angle = 0.0f;   /* 目标电角度0 */
     int align_steps = 1000;     /* 对齐步数 */
 
