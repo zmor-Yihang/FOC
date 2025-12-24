@@ -22,7 +22,7 @@ void test_as5047(void)
     }
 
     /* 每次循环更新速度数据 */
-    as5047_calculate_speed();
+    /* 速度会在调用 get_speed_rpm() 时自动更新 */
 
     /* 每 100ms 打印一次数据 */
     current_tick = HAL_GetTick();
@@ -31,29 +31,24 @@ void test_as5047(void)
         last_tick = current_tick;
 
         /* 读取角度信息 */
-        uint16_t raw_angle = as5047_read_angle_raw();
-        float angle_rad = as5047_read_angle_rad();
+        /* uint16_t raw_angle = as5047_read_angle_raw();  <-- 现在是内部函数，无法外部调用 */
+        float angle_rad = as5047_get_angle_rad();
 
         /* 读取速度信息 */
-        float speed_rpm = as5047_read_speed_rpm();
-        float speed_rad_s = as5047_read_speed_rad_s();
-
-        /* 读取诊断信息 */
-        uint16_t diaagc = as5047_read_diaagc();
-        uint16_t mag = as5047_read_magnitude();
-        uint16_t error = as5047_read_error();
+        float speed_rpm = as5047_get_speed_rpm();
+        uint16_t error = as5047_get_error();
 
         /* 打印角度数据 */
-        vofa_print(&huart1, "Angle Raw: %5u | Rad: %.4f\r\n",
-                   raw_angle, angle_rad);
+        /* vofa_print(&huart1, "Angle Raw: %5u | Rad: %.4f\r\n", raw_angle, angle_rad); */
+        vofa_print(&huart1, "Angle Rad: %.4f\r\n", angle_rad);
 
         /* 打印速度数据 */
-        vofa_print(&huart1, "Speed: %.1f RPM | %.2f rad/s\r\n",
-                   speed_rpm, speed_rad_s);
+        vofa_print(&huart1, "Speed: %.1f RPM\r\n",
+                   speed_rpm);
 
         /* 打印诊断信息 */
-        vofa_print(&huart1, "DIAAGC: 0x%04X | MAG: 0x%04X | ERR: 0x%04X\r\n",
-                   diaagc, mag, error);
+        vofa_print(&huart1, "Error: 0x%04X\r\n",
+                   error);
 
         /* 检查错误 */
         if (error != 0)

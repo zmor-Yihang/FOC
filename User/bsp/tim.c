@@ -51,8 +51,6 @@ void tim1_init(void)
     htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE; /* 使能自动重装载预装载 */
     HAL_TIM_Base_Init(&htim1);                                    /* 先初始化Base */
 
-    // sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-    // HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig);
     HAL_TIM_PWM_Init(&htim1); /* 初始化TIM1 PWM模式 */
 
     /* 配置TIM1为主模式，触发ADC采样 */

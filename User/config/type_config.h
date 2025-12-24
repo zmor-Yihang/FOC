@@ -82,8 +82,10 @@ typedef struct
     pid_controller_t *pid_speed; /* 速度环 */
 
     /* 输出占空比 */
-    abc_t duty_cycle; /* SVPWM计算出的占空比，归一化到[0, 1] */
+    abc_t duty_cycle; /* SVPWM计算出的占空比 */
 
+    /* 编码器零点偏移 */
+    float angle_offset; /* 编码器零点偏移角 (rad)，用于计算实际电角度 */
 } foc_t;
 
 #endif /* __TYPE_CONFIG_H__ */

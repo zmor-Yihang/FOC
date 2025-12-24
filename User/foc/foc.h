@@ -22,7 +22,7 @@ void foc_set_target(foc_t *handle, float target_Id, float target_Iq, float targe
 
 
 /* 电机零点对齐 */
-void foc_alignment(void);
+void foc_alignment(foc_t *handle);
 
 void foc_loop(foc_t *handle, float angle_el, abc_t *i_abc, uint16_t speed_rpm);
 

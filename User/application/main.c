@@ -1,5 +1,7 @@
 #include "main.h"
 
+static foc_t foc_handle;
+
 int main(void)
 {
     HAL_Init();
@@ -17,16 +19,24 @@ int main(void)
     tim1_init(); /* 初始化TIM1用于PWM输出 */
 
     adc1_init();     /* 初始化ADC1 */
-    foc_alignment(); /* 电机零点对齐 */
+    test_svpwm(); /* 测试SVPWM算法 */
+
+    foc_alignment(&foc_handle); /* 电机零点对齐 */
+    // test_raw_six_step();
+
+    test_foc_open(); /* 测试开环控制 */
+
+    test_current_closed_loop(); /* 测试电流闭环控制 */
 
     while (1)
     {
+
 
         if (key_scan() == 1)
         {
             printf("Loop is exit!\n");
             break;
         }
-        HAL_Delay(100);
+        HAL_Delay(10);
     }
 }

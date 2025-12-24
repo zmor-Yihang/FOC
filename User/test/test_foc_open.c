@@ -5,7 +5,7 @@ void test_foc_open(void)
 
     dq_t u_dq = {
         .d = 0.0f,
-        .q = 1.0f,
+        .q = 2.0f,
     };
 
     float angle_el = 0.0f;

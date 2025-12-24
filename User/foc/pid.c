@@ -28,11 +28,11 @@ void pid_init(pid_controller_t *pid, float kp, float ki, float kd, float out_max
 }
 
 /**
- * @brief PID计算, 位置式PID
+ * @brief PID计算, 位置式PID (带积分抗饱和)
  * @param pid PID控制器结构体指针
  * @param setpoint 设定值
  * @param feedback 反馈值
- * @return 控制输出, 范围[-out_max, out_max], 非归一化的值
+ * @return 控制输出, 范围[out_min, out_max], 非归一化的值
  *
  * 位置式PID公式：
  * u(k) = Kp*e(k) + Ki*∑e(k) + Kd*[e(k) - e(k-1)]
@@ -40,6 +40,7 @@ void pid_init(pid_controller_t *pid, float kp, float ki, float kd, float out_max
 float pid_calculate(pid_controller_t *pid, float setpoint, float feedback)
 {
     float proportional, derivative;
+    float output_unbounded;
 
     /* 计算当前误差 */
     pid->error = setpoint - feedback;
@@ -47,21 +48,29 @@ float pid_calculate(pid_controller_t *pid, float setpoint, float feedback)
     /* 比例项 */
     proportional = pid->kp * pid->error;
 
-    /* 积分项 */
-    pid->integral += pid->ki * pid->error;
-
-    /* 积分限幅 */
-    if (pid->integral > pid->integral_max)
-    {
-        pid->integral = pid->integral_max;
-    }
-    else if (pid->integral < -pid->integral_max)
-    {
-        pid->integral = -pid->integral_max;
-    }
-
     /* 微分项 */
     derivative = pid->kd * (pid->error - pid->error_last);
+
+    /* 计算未限幅的输出（用于判断是否需要积分） */
+    output_unbounded = proportional + pid->integral + derivative;
+
+    /* 积分抗饱和：只有在输出未饱和，或者误差方向有助于退出饱和时才累积积分 */
+    if ((output_unbounded < pid->out_max && output_unbounded > pid->out_min) ||
+        (output_unbounded >= pid->out_max && pid->error < 0.0f) ||
+        (output_unbounded <= pid->out_min && pid->error > 0.0f))
+    {
+        pid->integral += pid->ki * pid->error;
+
+        /* 积分限幅 */
+        if (pid->integral > pid->integral_max)
+        {
+            pid->integral = pid->integral_max;
+        }
+        else if (pid->integral < -pid->integral_max)
+        {
+            pid->integral = -pid->integral_max;
+        }
+    }
 
     /* PID输出 = 比例 + 积分 + 微分 */
     pid->out = proportional + pid->integral + derivative;

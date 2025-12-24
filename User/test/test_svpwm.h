@@ -5,6 +5,7 @@
 #include "./utils/fast_sin_cos.h"
 #include "./utils/vofa.h"
 #include "bsp/usart.h"
+#include "bsp/key.h"
 
 void test_svpwm(void);
 

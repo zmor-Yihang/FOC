@@ -28,26 +28,10 @@
 #define AS5047_SPEED_FILTER_ALPHA 0.2f  /* 速度滤波系数 (一阶低通) */
 
 void as5047_init(void);
-float as5047_read_angle_rad(void);
-void as5047_calculate_speed(void);
+float as5047_get_angle_rad(void);
+float as5047_get_speed_rpm(void);
+uint16_t as5047_get_error(void);
 
-uint16_t as5047_read_angle_raw(void);
-uint16_t as5047_read_diaagc(void);
-uint16_t as5047_read_magnitude(void);
-uint16_t as5047_read_error(void);
-
-
-/**
- * @brief 读取转速 (RPM)
- * @return 转速值
- */
-float as5047_read_speed_rpm(void);
-
-/**
- * @brief 读取角速度 (rad/s)
- * @return 角速度值
- */
-float as5047_read_speed_rad_s(void);
 
 
 

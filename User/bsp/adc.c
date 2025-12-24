@@ -202,8 +202,6 @@ void ADC1_2_IRQHandler(void)
     HAL_ADC_IRQHandler(&hadc1);
 }
 
-volatile uint8_t adc_injected_cplt_flag = 0;
-
 /* ADC注入转换完成回调函数 */
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
@@ -215,6 +213,7 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
         adc_injected_buf[2] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_3);
         adc_injected_buf[3] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_4);
 
-        adc_injected_cplt_flag = 1;
+        /* 调用电流闭环处理函数 */
+        current_closed_loop_handler();
     }
 }

@@ -104,28 +104,19 @@ void as5047_init(void)
 /**
  * @brief 读取角度原始值 (带补偿)
  */
-uint16_t as5047_read_angle_raw(void)
+static uint16_t as5047_get_angle_raw(void)
 {
     return as5047_read_reg(AS5047_REG_ANGLECOM);
-}
-
-/**
- * @brief 读取机械角度 (弧度)
- */
-float as5047_read_angle_rad(void)
-{
-    uint16_t raw = as5047_read_angle_raw();
-    return ((float)raw / (float)AS5047_RESOLUTION) * 2.0f * M_PI;
 }
 
 /**
  * @brief 更新 AS5047P 速度数据
  * @note  处理角度翻转（0->2PI 或 2PI->0）
  */
-void as5047_calculate_speed(void)
+static void as5047_calculate_speed(void)
 {
     // 1. 只读取一次原始值，避免重复采样和数据不一致
-    uint16_t current_angle_raw = as5047_read_angle_raw();
+    uint16_t current_angle_raw = as5047_get_angle_raw();
 
     // 2. 获取时间 (如果能换成微秒级更好)
     uint32_t current_time = HAL_GetTick();
@@ -189,40 +180,27 @@ void as5047_calculate_speed(void)
 }
 
 /**
+ * @brief 读取机械角度 (弧度)
+ */
+float as5047_get_angle_rad(void)
+{
+    uint16_t raw = as5047_get_angle_raw();
+    return ((float)raw / (float)AS5047_RESOLUTION) * 2.0f * M_PI;
+}
+
+/**
  * @brief 读取转速 (RPM)
  */
-float as5047_read_speed_rpm(void)
+float as5047_get_speed_rpm(void)
 {
+    as5047_calculate_speed();
     return as5047_speed_data.speed_rpm;
-}
-
-/**
- * @brief 读取角速度 (rad/s)
- */
-float as5047_read_speed_rad_s(void)
-{
-    return as5047_speed_data.speed_rad_s;
-}
-/**
- * @brief 读取诊断和AGC信息
- */
-uint16_t as5047_read_diaagc(void)
-{
-    return as5047_read_reg(AS5047_REG_DIAAGC);
-}
-
-/**
- * @brief 读取磁场强度
- */
-uint16_t as5047_read_magnitude(void)
-{
-    return as5047_read_reg(AS5047_REG_MAG);
 }
 
 /**
  * @brief 读取错误标志
  */
-uint16_t as5047_read_error(void)
+uint16_t as5047_get_error(void)
 {
     return as5047_read_reg(AS5047_REG_ERRFL);
 }
