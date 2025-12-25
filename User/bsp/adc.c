@@ -213,7 +213,8 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
         adc_injected_buf[2] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_3);
         adc_injected_buf[3] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_4);
 
-        /* 调用电流闭环处理函数 */
+        
         current_closed_loop_handler();
+        speed_closed_loop_handler();
     }
 }

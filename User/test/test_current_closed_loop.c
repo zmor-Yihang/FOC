@@ -17,8 +17,8 @@ void test_current_closed_loop(void)
     /* 初始化PID控制器 - 降低参数和限幅防止过冲 */
     /* 电流环输出限幅不超过Udc/2，避免过调制 */
     float v_limit = U_DC * 0.5f;  /* 约6.75V */
-    pid_init(&pid_id, 0.17f, 0.02f, 0.0f, v_limit, -v_limit);
-    pid_init(&pid_iq, 0.17f, 0.02f, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_id, 1.13f, 0.1884f, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_iq, 1.13f, 0.1884f, 0.0f, v_limit, -v_limit);
 
     /* 初始化FOC句柄 */
     foc_init(&foc_handle, &pid_id, &pid_iq, NULL);
@@ -27,7 +27,7 @@ void test_current_closed_loop(void)
     foc_alignment(&foc_handle);
 
     /* 软启动：初始目标电流为0 */
-    target_iq_final = 0.5f;
+    target_iq_final = 0.1f;
     target_iq_ramp = 0.0f;
     foc_set_target(&foc_handle, 0.0f, 0.0f, 0.0f);
 
@@ -43,7 +43,7 @@ void test_current_closed_loop(void)
         /* 延时，避免CPU占用过高 */
         delay_us(100);
 
-        /* 每 100ms 打印一次当前 dq 电流（主循环打印，避免 ISR 阻塞） */
+        /* 每 100ms 打印一次当前 dq 电流 */
         static uint32_t last_print_tick = 0;
         if (HAL_GetTick() - last_print_tick >= 100)
         {

@@ -33,7 +33,7 @@
 #include "test/test_adc.h"
 #include "test/test_as5047.h"
 #include "test/test_foc_open.h"
-#include "test/test_motor_phase.h"
+#include "test/test_speed_closed_loop.h"
 
 
 

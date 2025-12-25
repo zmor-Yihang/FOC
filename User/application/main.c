@@ -1,5 +1,6 @@
 #include "main.h"
 
+
 static foc_t foc_handle;
 
 int main(void)
@@ -26,7 +27,9 @@ int main(void)
 
     test_foc_open(); /* 测试开环控制 */
 
-    test_current_closed_loop(); /* 测试电流闭环控制 */
+    // test_current_closed_loop(); /* 测试电流闭环控制 */
+
+    test_speed_closed_loop(); /* 测试速度闭环控制 */
 
     while (1)
     {
