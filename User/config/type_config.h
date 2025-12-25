@@ -52,14 +52,6 @@ typedef struct
     float udc;
 } adc_values_t;
 
-/* 三相电流零点补偿值 */
-typedef struct
-{
-    float ia_offset;
-    float ib_offset;
-    float ic_offset;
-} adc_offset_t;
-
 /* 核心控制对象 */
 typedef struct
 {

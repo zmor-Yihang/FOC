@@ -39,7 +39,7 @@ void test_speed_closed_loop(void)
     foc_alignment(&foc_handle);
 
     /* 软启动：初始目标速度为0 */
-    target_speed_final = 20.0f; /* 目标速度 20 rad/s */ 
+    target_speed_final = 80.0f; /* 目标速度 20 rad/s */ 
     target_speed_ramp = 0.0f;
     foc_set_target(&foc_handle, 0.0f, 0.0f, 0.0f);
 

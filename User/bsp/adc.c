@@ -5,13 +5,30 @@ ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
 /* 规则组缓冲区 */
-uint16_t adc_regular_buf[4] = {0};
+static uint16_t adc_regular_buf[4] = {0};
 
 /* 注入组数据缓冲区 */
-uint16_t adc_injected_buf[4] = {0};
+static uint16_t adc_injected_buf[4] = {0};
 
 /* 三相电流零点补偿 */
-adc_offset_t adc_offset = {0};
+static adc_offset_t adc_offset = {0};
+
+/* 转换原始ADC值为实际电流和电压 */
+static void adc1_value_convert(uint16_t *adc_buf, adc_values_t *adc_values_converted)
+{
+    float voltage;
+
+    voltage = adc_buf[0] * 3.3f / 4096.0f - ADC_REF_VOLTAGE;
+    adc_values_converted->ia = -ADC_CURRENT_SCALE * (voltage - adc_offset.ia_offset);
+
+    voltage = adc_buf[1] * 3.3f / 4096.0f - ADC_REF_VOLTAGE;
+    adc_values_converted->ib = -ADC_CURRENT_SCALE * (voltage - adc_offset.ib_offset);
+
+    voltage = adc_buf[2] * 3.3f / 4096.0f - ADC_REF_VOLTAGE;
+    adc_values_converted->ic = -ADC_CURRENT_SCALE * (voltage - adc_offset.ic_offset);
+
+    adc_values_converted->udc = ADC_UDC_SCALE * (adc_buf[3] * 3.3f / 4096.0f);
+}
 
 /* adc1初始化 + 校准零点 */
 void adc1_init(void)
@@ -154,23 +171,6 @@ void adc1_init(void)
 
     /* 开启注入组转换中断 */
     HAL_ADCEx_InjectedStart_IT(&hadc1);
-}
-
-/* 转换原始ADC值为实际电流和电压 */
-static void adc1_value_convert(uint16_t *adc_buf, adc_values_t *adc_values_converted)
-{
-    float voltage;
-
-    voltage = adc_buf[0] * 3.3f / 4096.0f - ADC_REF_VOLTAGE;
-    adc_values_converted->ia = -ADC_CURRENT_SCALE * (voltage - adc_offset.ia_offset);
-
-    voltage = adc_buf[1] * 3.3f / 4096.0f - ADC_REF_VOLTAGE;
-    adc_values_converted->ib = -ADC_CURRENT_SCALE * (voltage - adc_offset.ib_offset);
-
-    voltage = adc_buf[2] * 3.3f / 4096.0f - ADC_REF_VOLTAGE;
-    adc_values_converted->ic = -ADC_CURRENT_SCALE * (voltage - adc_offset.ic_offset);
-
-    adc_values_converted->udc = ADC_UDC_SCALE * (adc_buf[3] * 3.3f / 4096.0f);
 }
 
 /* 获取三相电流偏移量 */

@@ -15,10 +15,10 @@ static volatile float current_q = 0.0f;
 void test_current_closed_loop(void)
 {
     /* 初始化PID控制器 - 降低参数和限幅防止过冲 */
-    /* 电流环输出限幅不超过Udc/2，避免过调制 */
-    float v_limit = U_DC * 0.5f;  /* 约6.75V */
-    pid_init(&pid_id, 1.13f, 0.1884f, 0.0f, v_limit, -v_limit);
-    pid_init(&pid_iq, 1.13f, 0.1884f, 0.0f, v_limit, -v_limit);
+    /* 电流环输出限幅不超过Udc/√3，避免过调制 */
+    float v_limit = U_DC * 0.557f;  /* 约6.75V */
+    pid_init(&pid_id, 0.67f, 0.000035f, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_iq, 0.67f, 0.000035f, 0.0f, v_limit, -v_limit);
 
     /* 初始化FOC句柄 */
     foc_init(&foc_handle, &pid_id, &pid_iq, NULL);

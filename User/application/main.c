@@ -1,6 +1,5 @@
 #include "main.h"
 
-
 static foc_t foc_handle;
 
 int main(void)
@@ -20,10 +19,10 @@ int main(void)
     tim1_init(); /* 初始化TIM1用于PWM输出 */
 
     adc1_init();     /* 初始化ADC1 */
+
     test_svpwm(); /* 测试SVPWM算法 */
 
     foc_alignment(&foc_handle); /* 电机零点对齐 */
-    // test_raw_six_step();
 
     test_foc_open(); /* 测试开环控制 */
 
@@ -31,9 +30,11 @@ int main(void)
 
     test_speed_closed_loop(); /* 测试速度闭环控制 */
 
+
+
     while (1)
     {
-
+        
 
         if (key_scan() == 1)
         {
