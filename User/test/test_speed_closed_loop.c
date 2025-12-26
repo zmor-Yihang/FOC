@@ -29,8 +29,8 @@ void test_speed_closed_loop(void)
 
     /* 电流环输出限幅不超过Udc/√3，避免过调制 */
     float v_limit = U_DC * 0.557f; /* 约6.75V */
-    pid_init(&pid_id, 0.017f, 0.000035, 0.0f, v_limit, -v_limit);
-    pid_init(&pid_iq, 0.017f, 0.000035, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_id, 0.017f, 0.000035f, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_iq, 0.017f, 0.000035f, 0.0f, v_limit, -v_limit);
 
     /* 初始化FOC句柄 - 传入速度环PID控制器 */
     foc_init(&foc_handle, &pid_id, &pid_iq, &pid_speed);
@@ -38,13 +38,13 @@ void test_speed_closed_loop(void)
     /* 电机零点对齐 */
     foc_alignment(&foc_handle);
 
-    /* 软启动：初始目标速度为0 */
-    target_speed_final = 80.0f; /* 目标速度 20 rad/s */ 
+    /* 软启动：初始目标速度为0（单位：RPM） */
+    target_speed_final = 2000.0f; 
     target_speed_ramp = 0.0f;
     foc_set_target(&foc_handle, 0.0f, 0.0f, 0.0f);
 
     printf("Speed Closed Loop Test Start!\r\n");
-    printf("Target Speed: %.2f rad/s\r\n", target_speed_final);
+    printf("Target Speed: %.2f RPM\r\n", target_speed_final);
 
     /* 使能速度环 */
     speed_loop_enable = 1;
@@ -98,21 +98,22 @@ void speed_closed_loop_handler(void)
     }
 
     /* 软启动斜坡：逐渐增加目标速度 */
-    if (target_speed_ramp < target_speed_final)
-    {
-        target_speed_ramp += 0.01f; /* 斜坡增量，根据PWM频率调整 */
-        if (target_speed_ramp > target_speed_final)
+        if (target_speed_ramp < target_speed_final)
         {
-            target_speed_ramp = target_speed_final;
+            /* 斜坡增量：以 RPM 为单位 */
+            target_speed_ramp += 0.1f; /* 根据中断频率调整为合适的 RPM 步进 */
+            if (target_speed_ramp > target_speed_final)
+            {
+                target_speed_ramp = target_speed_final;
+            }
+            /* 直接把 RPM 目标写入 foc_handle（foc_loop 已使用 RPM 单位） */
+            foc_handle.target_speed = target_speed_ramp;
         }
-        /* foc_loop 使用 RPM 作为速度反馈单位，因此将目标速度从 rad/s 转为 RPM */
-        foc_handle.target_speed = target_speed_ramp * (60.0f / (2.0f * M_PI));
-    }
 
     /* 获取实际转速 */
     float actual_speed_rpm = as5047_get_speed_rpm(); /* 获取RPM */
-    /* 转换为 rad/s */
-    actual_speed = actual_speed_rpm * 0.104719755f; /* RPM * (2π/60) = rad/s */
+    /* 以 RPM 保存用于显示 */
+    actual_speed = actual_speed_rpm;
 
     /* 获取ADC注入组转换值 */
     adc_values_t adc_values;

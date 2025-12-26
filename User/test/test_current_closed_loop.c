@@ -27,7 +27,7 @@ void test_current_closed_loop(void)
     foc_alignment(&foc_handle);
 
     /* 软启动：初始目标电流为0 */
-    target_iq_final = 0.1f;
+    target_iq_final = 0.2f;
     target_iq_ramp = 0.0f;
     foc_set_target(&foc_handle, 0.0f, 0.0f, 0.0f);
 
@@ -51,6 +51,7 @@ void test_current_closed_loop(void)
             if (current_loop_enable)
             {
                 printf("dq current:%.3f, %.3f\r\n", current_d, current_q);
+                printf("speed RPM: %.2f\r\n", as5047_get_speed_rpm());
             }
         }
 
@@ -101,16 +102,6 @@ void current_closed_loop_handler(void)
     /* 获取电角度 */
     float angle_mech = as5047_get_angle_rad();  /* 机械角度 (rad) */
     float angle_el = (angle_mech - foc_handle.angle_offset) * MOTOR_POLE_PAIR;  /* 电角度 (rad) */
-
-    // /* 角度归一化到 [0, 2π] */
-    // while (angle_el < 0.0f)
-    // {
-    //     angle_el += 2.0f * M_PI;
-    // }
-    // while (angle_el >= 2.0f * M_PI)
-    // {
-    //     angle_el -= 2.0f * M_PI;
-    // }
 
     /* 三相电流 */
     abc_t i_abc = {

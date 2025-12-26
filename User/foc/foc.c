@@ -45,7 +45,7 @@ void foc_alignment(foc_t *handle)
     alphabeta_t v_alphabeta = ipark_transform(v_dq, 0.0f);
     abc_t duty = svpwm_update(v_alphabeta);
     tim1_set_pwm_duty(duty.a, duty.b, duty.c);
-    
+
     HAL_Delay(2000);
 
     tim1_set_pwm_duty(0, 0, 0);
@@ -75,7 +75,7 @@ void foc_current_closed_loop(foc_t *handle, dq_t i_dq_feedback, float angle_el)
     handle->duty_cycle = svpwm_update(v_alphabeta);
 
     tim1_set_pwm_duty(handle->duty_cycle.a, handle->duty_cycle.b, handle->duty_cycle.c);
-    }
+}
 
 /* 速度闭环 */
 void foc_loop(foc_t *handle, float angle_el, abc_t *i_abc, uint16_t speed_rpm)
@@ -83,26 +83,22 @@ void foc_loop(foc_t *handle, float angle_el, abc_t *i_abc, uint16_t speed_rpm)
     // 1. Clarke + Park 变换，得到 dq 电流
     alphabeta_t i_alphabeta = clark_transform(*i_abc);
     dq_t i_dq = park_transform(i_alphabeta, angle_el);
-    
-     // 2. 速度环 → 输出目标 Iq
-     /* foc_loop 中收到的速度是 RPM，为保证速度 PID 使用与测试中统一的单位（rad/s），
-         在调用速度 PID 前将 RPM 转为 rad/s（rad/s = RPM * 2π/60 ≈ RPM * 0.104719755） */
-     float speed_rad_s = (float)speed_rpm * 0.104719755f;
-     handle->target_Iq = pid_calculate(handle->pid_speed, handle->target_speed, speed_rad_s);
-    
+
+    // 2. 速度环 → 输出目标 Iq
+    handle->target_Iq = pid_calculate(handle->pid_speed, handle->target_speed, (float)speed_rpm);
+
     // 3. Id 目标一般为 0
     handle->target_Id = 0.0f;
-    
+
     // 4. 电流环
     handle->v_d_out = pid_calculate(handle->pid_id, handle->target_Id, i_dq.d);
     handle->v_q_out = pid_calculate(handle->pid_iq, handle->target_Iq, i_dq.q);
-    
+
     // 5. 逆 Park + SVPWM
     alphabeta_t v_alphabeta = ipark_transform(
-        (dq_t){.d = handle->v_d_out, .q = handle->v_q_out}, 
-        angle_el
-    );
-    
+        (dq_t){.d = handle->v_d_out, .q = handle->v_q_out},
+        angle_el);
+
     handle->duty_cycle = svpwm_update(v_alphabeta);
     tim1_set_pwm_duty(handle->duty_cycle.a, handle->duty_cycle.b, handle->duty_cycle.c);
 }
