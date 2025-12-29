@@ -11,14 +11,16 @@ static float target_iq_final = 0.0f;             /* Iq最终目标电流 */
 static volatile float current_d = 0.0f;
 static volatile float current_q = 0.0f;
 
+static volatile float actual_speed = 0.0f;
+
 /* 电流双闭环测试函数 */
 void test_current_closed_loop(void)
 {
     /* 初始化PID控制器 - 降低参数和限幅防止过冲 */
     /* 电流环输出限幅不超过Udc/√3，避免过调制 */
     float v_limit = U_DC * 0.557f; /* 约6.75V */
-    pid_init(&pid_id, 0.67f, 0.000035f, 0.0f, v_limit, -v_limit);
-    pid_init(&pid_iq, 0.67f, 0.000035f, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_id, 0.017f, 0.00035f, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_iq, 0.017f, 0.00035f, 0.0f, v_limit, -v_limit);
 
     /* 初始化FOC句柄 */
     foc_init(&foc_handle, &pid_id, &pid_iq, NULL);
@@ -27,7 +29,7 @@ void test_current_closed_loop(void)
     foc_alignment(&foc_handle);
 
     /* 软启动：初始目标电流为0 */
-    target_iq_final = 0.2f;
+    target_iq_final = 0.5f;
     target_iq_ramp = 0.0f;
     foc_set_target(&foc_handle, 0.0f, 0.0f, 0.0f);
 
@@ -40,11 +42,10 @@ void test_current_closed_loop(void)
     /* 主循环：等待按键退出 */
     while (1)
     {
-        /* 延时，避免CPU占用过高 */
         delay_us(100);
 
         /* 每 100ms 打印一次当前 dq 电流 */
-        printf_period(100, "Current D: %.2f A, Current Q: %.2f A\r\n", current_d, current_q);
+        printf_period(100, "Id,Iq,speed: %.2f, %.2f, %.2f \n", current_d, current_q, actual_speed);
 
         /* 按键检测，按下退出 */
         if (key_scan() == 1)
@@ -90,6 +91,11 @@ void current_closed_loop_handler(void)
     adc_values_t adc_values;
     adc1_get_injected_values(&adc_values);
 
+    /* 更新速度计算 */
+    as5047_update_speed();
+    /* 以 RPM 保存用于显示 */
+    actual_speed = as5047_get_speed_rpm();
+    
     /* 获取电角度 */
     float angle_mech = as5047_get_angle_rad();                                 /* 机械角度 (rad) */
     float angle_el = (angle_mech - foc_handle.angle_offset) * MOTOR_POLE_PAIR; /* 电角度 (rad) */

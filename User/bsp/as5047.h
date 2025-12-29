@@ -24,11 +24,12 @@
 #define AS5047_RESOLUTION       16384   /* 14位分辨率 (2^14) */
 
 /* 速度计算参数 */
-#define AS5047_SPEED_SAMPLE_TIME 0.001f /* 采样周期 (秒) - 1ms */
-#define AS5047_SPEED_FILTER_ALPHA 0.2f  /* 速度滤波系数 (一阶低通) */
+#define AS5047_SPEED_SAMPLE_TIME 0.0001f /* 采样周期 (秒) - 100us (10kHz ADC注入中断调用) */
+#define AS5047_SPEED_FILTER_ALPHA 0.15f  /* 速度滤波系数 (一阶低通) */
 
 void as5047_init(void);
 float as5047_get_angle_rad(void);
+void as5047_update_speed(void);
 float as5047_get_speed_rpm(void);
 uint16_t as5047_get_error(void);
 

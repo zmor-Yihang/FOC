@@ -22,7 +22,7 @@ void test_as5047(void)
     }
 
     /* 每次循环更新速度数据 */
-    /* 速度会在调用 get_speed_rpm() 时自动更新 */
+    as5047_update_speed();
 
     /* 每 100ms 打印一次数据 */
     current_tick = HAL_GetTick();

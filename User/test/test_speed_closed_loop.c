@@ -39,7 +39,7 @@ void test_speed_closed_loop(void)
     foc_alignment(&foc_handle);
 
     /* 软启动：初始目标速度为0（单位：RPM） */
-    target_speed_final = 2000.0f;
+    target_speed_final = -4000.0f;
     target_speed_ramp = 0.0f;
     foc_set_target(&foc_handle, 0.0f, 0.0f, 0.0f);
 
@@ -102,8 +102,11 @@ void speed_closed_loop_handler(void)
         foc_handle.target_speed = target_speed_ramp;
     }
 
+    /* 更新速度计算 */
+    as5047_update_speed();
+
     /* 获取实际转速 */
-    float actual_speed_rpm = as5047_get_speed_rpm(); /* 获取RPM */
+    float actual_speed_rpm = as5047_get_speed_rpm();
     
     /* 以 RPM 保存用于显示 */
     actual_speed = actual_speed_rpm;
