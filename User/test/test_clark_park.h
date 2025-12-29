@@ -4,7 +4,7 @@
 #include "./foc/clark_park.h"
 
 #include "./utils/fast_sin_cos.h"
-#include "./utils/vofa.h"
+#include "./utils/print.h"
 
 void test_clark_park(void);
 

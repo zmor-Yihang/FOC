@@ -20,7 +20,7 @@
 #include "foc/foc.h"
 
 #include "utils/fast_sin_cos.h"
-#include "utils/vofa.h"
+#include "utils/print.h"
 #include "utils/delay.h"
 
 void test_foc_open(void);

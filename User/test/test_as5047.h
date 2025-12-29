@@ -4,7 +4,7 @@
 #include "stm32g4xx_hal.h"
 #include "./bsp/usart.h"
 #include "./bsp/as5047.h"
-#include "./utils/vofa.h"
+#include "./utils/print.h"
 
 /**
  * @brief AS5047P 编码器测试函数

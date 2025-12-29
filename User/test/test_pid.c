@@ -345,7 +345,7 @@ void test_foc_triple_loop_vofa(UART_HandleTypeDef *huart)
             
             /* VOFA+ RawData格式：CSV格式，逗号分隔，换行结尾 */
             /* 通道1: 目标速度, 通道2: 实际速度, 通道3: Iq电流, 通道4: Id电流, 通道5: 速度误差 */
-            vofa_print(huart, "%.2f,%.2f,%.2f,%.2f,%.2f\n", 
+            printf("%.2f,%.2f,%.2f,%.2f,%.2f\n", 
                        target_speed, actual_speed, actual_iq, actual_id, speed_error);
         }
         
@@ -358,5 +358,5 @@ void test_foc_triple_loop_vofa(UART_HandleTypeDef *huart)
     
     /* 发送测试结束标志 */
     HAL_Delay(100);
-    vofa_print(huart, "FOC Triple Loop Test Complete\n");
+    printf("FOC Triple Loop Test Complete\n");
 }

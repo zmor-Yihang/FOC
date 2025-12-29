@@ -18,7 +18,7 @@ void test_clark_park(void)
         alpha_beta_voltages = clark_transform(uvw_voltages);
         dq_voltages = park_transform(alpha_beta_voltages, theta);
 
-        vofa_print(&huart1, "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f\r\n",uvw_voltages.a, uvw_voltages.b, uvw_voltages.c,
+        printf("%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f\r\n",uvw_voltages.a, uvw_voltages.b, uvw_voltages.c,
              alpha_beta_voltages.alpha, alpha_beta_voltages.beta, dq_voltages.d, dq_voltages.q);
         
         HAL_Delay(100);

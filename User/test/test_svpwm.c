@@ -37,13 +37,13 @@ void test_svpwm(void)
             duty.b < 0.0f || duty.b > 1.0f ||
             duty.c < 0.0f || duty.c > 1.0f)
         {
-            vofa_print(&huart1, "ERROR: Duty out of range! a=%.3f, b=%.3f, c=%.3f\r\n",
+            printf("ERROR: Duty out of range! a=%.3f, b=%.3f, c=%.3f\r\n",
                        duty.a, duty.b, duty.c);
         }
 
         // 4. 通过 VOFA 打印输出结果用于波形显示
         //    格式: u_a, u_b, u_c, duty_a, duty_b, duty_c, 校验值(u_a+u_b+u_c)
-        vofa_print(&huart1, "%.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f\n",
+        printf("%.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f\n",
                    u_abc.a, u_abc.b, u_abc.c,
                    duty.a, duty.b, duty.c,
                    u_abc.a + u_abc.b + u_abc.c);
@@ -53,7 +53,7 @@ void test_svpwm(void)
 
         if (key_scan() == 1)
         {
-            vofa_print(&huart1, "SVPWM Test Stop!\r\n");
+            printf("SVPWM Test Stop!\r\n");
             return;
         }
     }

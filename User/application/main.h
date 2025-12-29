@@ -19,7 +19,7 @@
 #include "foc/foc.h"
 
 #include "utils/fast_sin_cos.h"
-#include "utils/vofa.h"
+#include "utils/print.h"
 #include "utils/delay.h"
 
 #include "test/test_clark_park.h"

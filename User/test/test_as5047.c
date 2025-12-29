@@ -17,8 +17,8 @@ void test_as5047(void)
         as5047_init();
         as5047_initialized = 1;
 
-        vofa_print(&huart1, "=== AS5047P Encoder Test Start ===\r\n");
-        vofa_print(&huart1, "Resolution: 14-bit (%d), Testing...\r\n\r\n", AS5047_RESOLUTION);
+        printf("=== AS5047P Encoder Test Start ===\r\n");
+        printf("Resolution: 14-bit (%d), Testing...\r\n\r\n", AS5047_RESOLUTION);
     }
 
     /* 每次循环更新速度数据 */
@@ -39,24 +39,24 @@ void test_as5047(void)
         uint16_t error = as5047_get_error();
 
         /* 打印角度数据 */
-        /* vofa_print(&huart1, "Angle Raw: %5u | Rad: %.4f\r\n", raw_angle, angle_rad); */
-        vofa_print(&huart1, "Angle Rad: %.4f\r\n", angle_rad);
+        /* printf("Angle Raw: %5u | Rad: %.4f\r\n", raw_angle, angle_rad); */
+        printf("Angle Rad: %.4f\r\n", angle_rad);
 
         /* 打印速度数据 */
-        vofa_print(&huart1, "Speed: %.1f RPM\r\n",
+        printf("Speed: %.1f RPM\r\n",
                    speed_rpm);
 
         /* 打印诊断信息 */
-        vofa_print(&huart1, "Error: 0x%04X\r\n",
+        printf("Error: 0x%04X\r\n",
                    error);
 
         /* 检查错误 */
         if (error != 0)
         {
-            vofa_print(&huart1, "WARNING: AS5047P Error detected! (0x%04X)\r\n", error);
+            printf("WARNING: AS5047P Error detected! (0x%04X)\r\n", error);
         }
 
-        vofa_print(&huart1, "\r\n");
+        printf("\r\n");
     }
 
     /* 延时 1ms */

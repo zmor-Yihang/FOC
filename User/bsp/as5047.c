@@ -80,27 +80,6 @@ static uint16_t as5047_read_reg(uint16_t reg_addr)
     return data;
 }
 
-void as5047_init(void)
-{
-    GPIO_InitTypeDef gpio_init = {0};
-
-    /* 使能 CS 引脚时钟 */
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-
-    /* 配置 CS 引脚为推挽输出 */
-    gpio_init.Pin = GPIO_PIN_15;
-    gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
-    gpio_init.Pull = GPIO_NOPULL;
-    gpio_init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    HAL_GPIO_Init(GPIOA, &gpio_init);
-
-    /* CS 默认拉高 */
-    AS5047_CS_HIGH();
-
-    /* 初始化 SPI */
-    spi_init();
-}
-
 /**
  * @brief 读取角度原始值 (带补偿)
  */
@@ -177,6 +156,27 @@ static void as5047_calculate_speed(void)
     // 更新 rad 仅做显示或记录用，不参与下一次核心计算
     as5047_speed_data.last_angle_rad = ((float)current_angle_raw / AS5047_RESOLUTION) * 2.0f * M_PI;
     as5047_speed_data.last_update_time = current_time;
+}
+
+void as5047_init(void)
+{
+    GPIO_InitTypeDef gpio_init = {0};
+
+    /* 使能 CS 引脚时钟 */
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+
+    /* 配置 CS 引脚为推挽输出 */
+    gpio_init.Pin = GPIO_PIN_15;
+    gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    HAL_GPIO_Init(GPIOA, &gpio_init);
+
+    /* CS 默认拉高 */
+    AS5047_CS_HIGH();
+
+    /* 初始化 SPI */
+    spi_init();
 }
 
 /**

@@ -16,23 +16,23 @@ void test_tim1(void)
     /* 初始化TIM1 */
     tim1_init();
     
-    vofa_print(&huart1, "=== TIM1 PWM测试开始 ===\r\n");
+    printf("=== TIM1 PWM测试开始 ===\r\n");
     
     /* 阶段1：固定占空比测试 */
-    vofa_print(&huart1, "[阶段1] 固定占空比50%%测试 (3秒)\r\n");
+    printf("[阶段1] 固定占空比50%%测试 (3秒)\r\n");
     tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
     HAL_Delay(3000);
     
-    vofa_print(&huart1, "[阶段1] 固定占空比25%%测试 (3秒)\r\n");
+    printf("[阶段1] 固定占空比25%%测试 (3秒)\r\n");
     tim1_set_pwm_duty(0.25f, 0.25f, 0.25f);
     HAL_Delay(3000);
     
-    vofa_print(&huart1, "[阶段1] 固定占空比75%%测试 (3秒)\r\n");
+    printf("[阶段1] 固定占空比75%%测试 (3秒)\r\n");
     tim1_set_pwm_duty(0.75f, 0.75f, 0.75f);
     HAL_Delay(3000);
     
     /* 阶段2：占空比渐变测试 */
-    vofa_print(&huart1, "[阶段2] 占空比渐变测试 (0%% -> 100%% -> 0%%)\r\n");
+    printf("[阶段2] 占空比渐变测试 (0%% -> 100%% -> 0%%)\r\n");
     duty = 0.0f;
     direction = 1;
     
@@ -42,7 +42,7 @@ void test_tim1(void)
         tim1_set_pwm_duty(duty, duty, duty);
         
         /* 打印当前占空比 */
-        vofa_print(&huart1, "Duty: %.2f%%\r\n", duty * 100.0f);
+        printf("Duty: %.2f%%\r\n", duty * 100.0f);
         
         /* 占空比渐变 */
         if (direction)
@@ -52,7 +52,7 @@ void test_tim1(void)
             {
                 duty = 1.0f;
                 direction = 0;  /* 改变方向 */
-                vofa_print(&huart1, ">>> 达到100%%, 开始下降\r\n");
+                printf(">>> 达到100%%, 开始下降\r\n");
             }
         }
         else
@@ -62,7 +62,7 @@ void test_tim1(void)
             {
                 duty = 0.0f;
                 direction = 1;  /* 改变方向 */
-                vofa_print(&huart1, ">>> 达到0%%, 开始上升\r\n");
+                printf(">>> 达到0%%, 开始上升\r\n");
                 
                 /* 完成一个周期后，进入阶段3 */
                 HAL_Delay(1000);
@@ -74,18 +74,18 @@ void test_tim1(void)
     }
     
     /* 阶段3：三相不同占空比测试 */
-    vofa_print(&huart1, "[阶段3] 三相独立占空比测试\r\n");
+    printf("[阶段3] 三相独立占空比测试\r\n");
     while (1)
     {
-        vofa_print(&huart1, "Phase: 25%%, 50%%, 75%%\r\n");
+        printf("Phase: 25%%, 50%%, 75%%\r\n");
         tim1_set_pwm_duty(0.25f, 0.5f, 0.75f);
         HAL_Delay(2000);
         
-        vofa_print(&huart1, "Phase: 75%%, 25%%, 50%%\r\n");
+        printf("Phase: 75%%, 25%%, 50%%\r\n");
         tim1_set_pwm_duty(0.75f, 0.25f, 0.5f);
         HAL_Delay(2000);
         
-        vofa_print(&huart1, "Phase: 50%%, 75%%, 25%%\r\n");
+        printf("Phase: 50%%, 75%%, 25%%\r\n");
         tim1_set_pwm_duty(0.5f, 0.75f, 0.25f);
         HAL_Delay(2000);
     }
