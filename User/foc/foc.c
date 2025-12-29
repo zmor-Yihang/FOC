@@ -78,7 +78,7 @@ void foc_current_closed_loop(foc_t *handle, dq_t i_dq_feedback, float angle_el)
 }
 
 /* 速度闭环 */
-void foc_loop(foc_t *handle, float angle_el, abc_t *i_abc, uint16_t speed_rpm)
+void foc_speed_closed_loop(foc_t *handle, float angle_el, abc_t *i_abc, uint16_t speed_rpm)
 {
     // 1. Clarke + Park 变换，得到 dq 电流
     alphabeta_t i_alphabeta = clark_transform(*i_abc);

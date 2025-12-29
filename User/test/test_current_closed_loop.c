@@ -1,12 +1,12 @@
 #include "test_current_closed_loop.h"
 
 /* 静态变量定义 */
-static pid_controller_t pid_id;  /* D轴电流环PID */
-static pid_controller_t pid_iq;  /* Q轴电流环PID */
-static foc_t foc_handle;         /* FOC控制句柄 */
-static volatile uint8_t current_loop_enable = 0;  /* 电流环使能标志 */
-static float target_iq_ramp = 0.0f;  /* Iq目标电流斜坡值 */
-static float target_iq_final = 0.0f; /* Iq最终目标电流 */
+static pid_controller_t pid_id;                  /* D轴电流环PID */
+static pid_controller_t pid_iq;                  /* Q轴电流环PID */
+static foc_t foc_handle;                         /* FOC控制句柄 */
+static volatile uint8_t current_loop_enable = 0; /* 电流环使能标志 */
+static float target_iq_ramp = 0.0f;              /* Iq目标电流斜坡值 */
+static float target_iq_final = 0.0f;             /* Iq最终目标电流 */
 /* 供打印使用：在 ISR 中写入，在主循环打印，避免在 ISR 中阻塞 */
 static volatile float current_d = 0.0f;
 static volatile float current_q = 0.0f;
@@ -16,7 +16,7 @@ void test_current_closed_loop(void)
 {
     /* 初始化PID控制器 - 降低参数和限幅防止过冲 */
     /* 电流环输出限幅不超过Udc/√3，避免过调制 */
-    float v_limit = U_DC * 0.557f;  /* 约6.75V */
+    float v_limit = U_DC * 0.557f; /* 约6.75V */
     pid_init(&pid_id, 0.67f, 0.000035f, 0.0f, v_limit, -v_limit);
     pid_init(&pid_iq, 0.67f, 0.000035f, 0.0f, v_limit, -v_limit);
 
@@ -44,16 +44,7 @@ void test_current_closed_loop(void)
         delay_us(100);
 
         /* 每 100ms 打印一次当前 dq 电流 */
-        static uint32_t last_print_tick = 0;
-        if (HAL_GetTick() - last_print_tick >= 100)
-        {
-            last_print_tick = HAL_GetTick();
-            if (current_loop_enable)
-            {
-                printf("dq current:%.3f, %.3f\r\n", current_d, current_q);
-                printf("speed RPM: %.2f\r\n", as5047_get_speed_rpm());
-            }
-        }
+        printf_period(100, "Current D: %.2f A, Current Q: %.2f A\r\n", current_d, current_q);
 
         /* 按键检测，按下退出 */
         if (key_scan() == 1)
@@ -87,7 +78,7 @@ void current_closed_loop_handler(void)
     /* 软启动斜坡：逐渐增加目标电流 */
     if (target_iq_ramp < target_iq_final)
     {
-        target_iq_ramp += 0.0001f;  /* 斜坡增量，根据PWM频率调整 */
+        target_iq_ramp += 0.0001f; /* 斜坡增量，根据PWM频率调整 */
         if (target_iq_ramp > target_iq_final)
         {
             target_iq_ramp = target_iq_final;
@@ -100,8 +91,8 @@ void current_closed_loop_handler(void)
     adc1_get_injected_values(&adc_values);
 
     /* 获取电角度 */
-    float angle_mech = as5047_get_angle_rad();  /* 机械角度 (rad) */
-    float angle_el = (angle_mech - foc_handle.angle_offset) * MOTOR_POLE_PAIR;  /* 电角度 (rad) */
+    float angle_mech = as5047_get_angle_rad();                                 /* 机械角度 (rad) */
+    float angle_el = (angle_mech - foc_handle.angle_offset) * MOTOR_POLE_PAIR; /* 电角度 (rad) */
 
     /* 三相电流 */
     abc_t i_abc = {
@@ -122,6 +113,4 @@ void current_closed_loop_handler(void)
 
     /* 电流闭环控制 */
     foc_current_closed_loop(&foc_handle, i_dq, angle_el);
-
-
 }

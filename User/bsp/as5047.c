@@ -97,7 +97,7 @@ static void as5047_calculate_speed(void)
     // 1. 只读取一次原始值，避免重复采样和数据不一致
     uint16_t current_angle_raw = as5047_get_angle_raw();
 
-    // 2. 获取时间 (如果能换成微秒级更好)
+    // 2. 获取时间
     uint32_t current_time = HAL_GetTick();
 
     /* 首次初始化处理 */
@@ -118,7 +118,11 @@ static void as5047_calculate_speed(void)
     // 简单的防止除零保护，实际应用建议用固定频率调用，不要依赖 dt 计算
     if (dt < 0.001f)
     {
-        // 时间间隔太短，无法计算有效速度，直接返回，避免噪声
+        // 时间间隔太短，无法计算有效速度，但仍需更新角度和时间状态
+        // 避免下次计算时基于过时的角度值导致严重错误
+        as5047_speed_data.last_angle_raw = current_angle_raw;
+        as5047_speed_data.last_angle_rad = ((float)current_angle_raw / AS5047_RESOLUTION) * 2.0f * M_PI;
+        as5047_speed_data.last_update_time = current_time;
         return;
     }
 
@@ -153,9 +157,6 @@ static void as5047_calculate_speed(void)
 
     /* 更新历史状态 */
     as5047_speed_data.last_angle_raw = current_angle_raw;
-    // 更新 rad 仅做显示或记录用，不参与下一次核心计算
-    as5047_speed_data.last_angle_rad = ((float)current_angle_raw / AS5047_RESOLUTION) * 2.0f * M_PI;
-    as5047_speed_data.last_update_time = current_time;
 }
 
 void as5047_init(void)

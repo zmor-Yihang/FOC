@@ -3,9 +3,9 @@
 
 #include "stm32g4xx_hal.h"
 
-#define MOTOR_POLE_PAIR 7  /* 电机极对数 */
+#define MOTOR_POLE_PAIR 7 /* 电机极对数 */
 
-#define U_DC 13.5f  /* 直流母线电压 (V) */
+#define U_DC 13.5f /* 直流母线电压 (V) */
 
 typedef struct
 {

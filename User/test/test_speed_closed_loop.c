@@ -39,7 +39,7 @@ void test_speed_closed_loop(void)
     foc_alignment(&foc_handle);
 
     /* 软启动：初始目标速度为0（单位：RPM） */
-    target_speed_final = 2000.0f; 
+    target_speed_final = 2000.0f;
     target_speed_ramp = 0.0f;
     foc_set_target(&foc_handle, 0.0f, 0.0f, 0.0f);
 
@@ -56,16 +56,8 @@ void test_speed_closed_loop(void)
         delay_us(100);
 
         /* 每 100ms 打印一次当前速度和电流 */
-        static uint32_t last_print_tick = 0;
-        if (HAL_GetTick() - last_print_tick >= 100)
-        {
-            last_print_tick = HAL_GetTick();
-            if (speed_loop_enable)
-            {
-                printf("Speed ID IQ: %.3f, %.3f, %.3f\r\n",
-                       actual_speed, current_d, current_q);
-            }
-        }
+        printf_period(100, "Speed ID IQ: %.3f, %.3f, %.3f\n",
+                      actual_speed, current_d, current_q);
 
         /* 按键检测，按下退出 */
         if (key_scan() == 1)
@@ -98,20 +90,21 @@ void speed_closed_loop_handler(void)
     }
 
     /* 软启动斜坡：逐渐增加目标速度 */
-        if (target_speed_ramp < target_speed_final)
+    if (target_speed_ramp < target_speed_final)
+    {
+        /* 斜坡增量：以 RPM 为单位 */
+        target_speed_ramp += 0.1f; /* 根据中断频率调整为合适的 RPM 步进 */
+        if (target_speed_ramp > target_speed_final)
         {
-            /* 斜坡增量：以 RPM 为单位 */
-            target_speed_ramp += 0.1f; /* 根据中断频率调整为合适的 RPM 步进 */
-            if (target_speed_ramp > target_speed_final)
-            {
-                target_speed_ramp = target_speed_final;
-            }
-            /* 直接把 RPM 目标写入 foc_handle（foc_loop 已使用 RPM 单位） */
-            foc_handle.target_speed = target_speed_ramp;
+            target_speed_ramp = target_speed_final;
         }
+        /* 直接把 RPM 目标写入 foc_handle */
+        foc_handle.target_speed = target_speed_ramp;
+    }
 
     /* 获取实际转速 */
     float actual_speed_rpm = as5047_get_speed_rpm(); /* 获取RPM */
+    
     /* 以 RPM 保存用于显示 */
     actual_speed = actual_speed_rpm;
 
@@ -131,7 +124,7 @@ void speed_closed_loop_handler(void)
     };
 
     /* 执行速度闭环控制：外环速度PID + 内环电流PID */
-    foc_loop(&foc_handle, angle_el, &i_abc, (uint16_t)actual_speed_rpm);
+    foc_speed_closed_loop(&foc_handle, angle_el, &i_abc, (uint16_t)actual_speed_rpm);
 
     /* 重新计算dq电流用于显示 */
     alphabeta_t i_alphabeta = clark_transform(i_abc);

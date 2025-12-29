@@ -4,6 +4,7 @@
 #include "foc/foc.h"
 #include "bsp/key.h"
 #include "utils/delay.h"
+#include "utils/print.h"
 
 #include <stdio.h>
 
