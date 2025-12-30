@@ -23,8 +23,8 @@ void test_speed_closed_loop(void)
              0.05f,    /* Kp - 速度环较慢 */
              0.00001f, /* Ki */
              0.0f,     /* Kd */
-             2.0f,     /* 输出上限(目标Iq) */
-             -2.0f     /* 输出下限 */
+             4.0f,     /* 输出上限(目标Iq) */
+             -4.0f     /* 输出下限 */
     );
 
     /* 电流环输出限幅不超过Udc/√3，避免过调制 */
@@ -107,7 +107,7 @@ void speed_closed_loop_handler(void)
 
     /* 获取实际转速 */
     float actual_speed_rpm = as5047_get_speed_rpm();
-    
+
     /* 以 RPM 保存用于显示 */
     actual_speed = actual_speed_rpm;
 
@@ -127,7 +127,7 @@ void speed_closed_loop_handler(void)
     };
 
     /* 执行速度闭环控制：外环速度PID + 内环电流PID */
-    foc_speed_closed_loop(&foc_handle, angle_el, &i_abc, (uint16_t)actual_speed_rpm);
+    foc_speed_closed_loop(&foc_handle, angle_el, &i_abc, actual_speed_rpm);
 
     /* 重新计算dq电流用于显示 */
     alphabeta_t i_alphabeta = clark_transform(i_abc);
