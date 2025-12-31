@@ -46,8 +46,8 @@ typedef struct
 /* 一阶低通滤波器结构体 */
 typedef struct
 {
-    float alpha;      /* 滤波系数 (0-1) */
-    float output;     /* 滤波器输出 */
+    float alpha;       /* 滤波系数 (0-1) */
+    float output;      /* 滤波器输出 */
     float initialized; /* 初始化标志 */
 } lpf_t;
 
