@@ -28,7 +28,7 @@ void test_speed_closed_loop(void)
     /* 速度环输出限幅作为Q轴电流目标值 */
     pid_init(&pid_speed,
              0.05f,    /* Kp - 速度环较慢 */
-             0.00005f, /* Ki */
+             0.00002f, /* Ki */
              0.0f,     /* Kd */
              2.0f,     /* 输出上限(目标Iq) */
              -2.0f     /* 输出下限 */
@@ -36,8 +36,8 @@ void test_speed_closed_loop(void)
 
     /* 电流环输出限幅不超过Udc/√3，避免过调制 */
     float v_limit = U_DC * 0.557f; /* 约6.75V */
-    pid_init(&pid_id, 0.01f, 0.0001f, 0.0f, v_limit, -v_limit);
-    pid_init(&pid_iq, 0.01f, 0.0001f, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_id, 0.017f, 0.000035f, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_iq, 0.017f, 0.000035f, 0.0f, v_limit, -v_limit);
 
     /* 初始化FOC句柄 - 传入速度环PID控制器 */
     foc_init(&foc_handle, &pid_id, &pid_iq, &pid_speed);

@@ -30,7 +30,7 @@ void test_current_closed_loop(void)
     foc_alignment(&foc_handle);
 
     /* 软启动：初始目标电流为0 */
-    target_iq_final = 0.4f;
+    target_iq_final = 0.5f;
     target_iq_ramp = 0.0f;
     foc_set_target_id(&foc_handle, 0.0f);
     foc_set_target_iq(&foc_handle, 0.0f);
