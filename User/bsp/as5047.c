@@ -129,21 +129,9 @@ void as5047_update_speed(void)
 
     float speed_raw = delta_angle / dt;
 
-    // 如果计算出的速度与当前速度差异过大，可能是由于噪声或异常值导致
-    float speed_diff = fabsf(speed_raw - as5047_speed_data.speed_rad_s);
-    float max_reasonable_speed = 400.0f; // 提高最大合理速度限制，可根据实际应用调整
-
-    if (speed_diff < max_reasonable_speed)
-    {
-        // 正常滤波
-        as5047_speed_data.speed_rad_s = AS5047_SPEED_FILTER_ALPHA * speed_raw +
-                                        (1.0f - AS5047_SPEED_FILTER_ALPHA) * as5047_speed_data.speed_rad_s;
-    }
-    else
-    {
-        // 如果速度变化过大，降低滤波强度以更快响应
-        as5047_speed_data.speed_rad_s = 0.3f * speed_raw + 0.7f * as5047_speed_data.speed_rad_s;
-    }
+    // 正常滤波
+    as5047_speed_data.speed_rad_s = AS5047_SPEED_FILTER_ALPHA * speed_raw +
+                                    (1.0f - AS5047_SPEED_FILTER_ALPHA) * as5047_speed_data.speed_rad_s;
 
     as5047_speed_data.speed_rpm = as5047_speed_data.speed_rad_s * 9.549297f;
     as5047_speed_data.last_angle_raw = current_angle_raw;

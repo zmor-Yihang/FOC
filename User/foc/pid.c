@@ -23,12 +23,12 @@ void pid_init(pid_controller_t *pid, float kp, float ki, float kd, float out_max
     pid->out_max = out_max;
     pid->out_min = out_min;
 
-    /* 积分限幅默认设为输出限幅 */
-    pid->integral_max = out_max;
+    /* 积分限幅默认设为输出限幅的2倍，以提供足够的积分作用范围 */
+    pid->integral_max = (out_max > -out_min) ? out_max * 2.0f : (-out_min) * 2.0f;
 }
 
 /**
- * @brief PID计算, 位置式PID (带积分抗饱和)
+ * @brief PID计算, 位置式PID
  * @param pid PID控制器结构体指针
  * @param setpoint 设定值
  * @param feedback 反馈值
@@ -40,7 +40,6 @@ void pid_init(pid_controller_t *pid, float kp, float ki, float kd, float out_max
 float pid_calculate(pid_controller_t *pid, float setpoint, float feedback)
 {
     float proportional, derivative;
-    float output_unbounded;
 
     /* 计算当前误差 */
     pid->error = setpoint - feedback;
@@ -48,29 +47,51 @@ float pid_calculate(pid_controller_t *pid, float setpoint, float feedback)
     /* 比例项 */
     proportional = pid->kp * pid->error;
 
-    /* 微分项 */
-    derivative = pid->kd * (pid->error - pid->error_last);
+    /* 积分项 - 带抗积分饱和 */
+    float integral_increment = pid->ki * pid->error;
 
-    /* 计算未限幅的输出（用于判断是否需要积分） */
-    output_unbounded = proportional + pid->integral + derivative;
-
-    /* 积分抗饱和：只有在输出未饱和，或者误差方向有助于退出饱和时才累积积分 */
-    if ((output_unbounded < pid->out_max && output_unbounded > pid->out_min) ||
-        (output_unbounded >= pid->out_max && pid->error < 0.0f) ||
-        (output_unbounded <= pid->out_min && pid->error > 0.0f))
+    /* 检查输出是否饱和 */
+    uint8_t output_saturated = 0;
+    if (pid->out >= pid->out_max)
     {
-        pid->integral += pid->ki * pid->error;
+        output_saturated = 1;
+    }
+    else if (pid->out <= pid->out_min)
+    {
+        output_saturated = 1;
+    }
 
-        /* 积分限幅 */
-        if (pid->integral > pid->integral_max)
+    /* 抗积分饱和：条件积分 */
+    if (output_saturated)
+    {
+        /* 输出饱和时，只在误差方向有助于退出饱和时才积分 */
+        if (pid->out >= pid->out_max && integral_increment < 0)
         {
-            pid->integral = pid->integral_max;
+            pid->integral += integral_increment;
         }
-        else if (pid->integral < -pid->integral_max)
+        else if (pid->out <= pid->out_min && integral_increment > 0)
         {
-            pid->integral = -pid->integral_max;
+            pid->integral += integral_increment;
         }
     }
+    else
+    {
+        /* 输出未饱和，正常积分 */
+        pid->integral += integral_increment;
+    }
+
+    /* 积分限幅 */
+    if (pid->integral > pid->integral_max)
+    {
+        pid->integral = pid->integral_max;
+    }
+    else if (pid->integral < -pid->integral_max)
+    {
+        pid->integral = -pid->integral_max;
+    }
+
+    /* 微分项 */
+    derivative = pid->kd * (pid->error - pid->error_last);
 
     /* PID输出 = 比例 + 积分 + 微分 */
     pid->out = proportional + pid->integral + derivative;

@@ -17,14 +17,20 @@
 // FOC控制函数
 void foc_init(foc_t* handle, pid_controller_t *pid_id, pid_controller_t *pid_iq, pid_controller_t *pid_speed);
 
-void foc_set_target(foc_t *handle, float target_Id, float target_Iq, float target_speed);
+void foc_set_target_id(foc_t *handle, float target_Id);
+void foc_set_target_iq(foc_t *handle, float target_Iq);
+void foc_set_target_speed(foc_t *handle, float target_speed);
+
+/* 低通滤波器函数 */
+float lpf_update(lpf_t *lpf, float input);
+void lpf_init(lpf_t *lpf, float alpha);
 
 
 
 /* 电机零点对齐 */
 void foc_alignment(foc_t *handle);
 
-void foc_speed_closed_loop(foc_t *handle, float angle_el, abc_t *i_abc, float speed_rpm);
+void foc_speed_closed_loop(foc_t *handle, float angle_el, dq_t i_dq, float speed_rpm);
 
 void foc_open_loop(dq_t u_dq, float angle_rad_el);
 

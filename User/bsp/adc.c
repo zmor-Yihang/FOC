@@ -19,13 +19,13 @@ static void adc1_value_convert(uint16_t *adc_buf, adc_values_t *adc_values_conve
     float voltage;
 
     voltage = adc_buf[0] * 3.3f / 4096.0f - ADC_REF_VOLTAGE;
-    adc_values_converted->ia = -ADC_CURRENT_SCALE * (voltage - adc_offset.ia_offset);
+    adc_values_converted->ia = ADC_CURRENT_SCALE * (voltage - adc_offset.ia_offset);
 
     voltage = adc_buf[1] * 3.3f / 4096.0f - ADC_REF_VOLTAGE;
-    adc_values_converted->ib = -ADC_CURRENT_SCALE * (voltage - adc_offset.ib_offset);
+    adc_values_converted->ib = ADC_CURRENT_SCALE * (voltage - adc_offset.ib_offset);
 
     voltage = adc_buf[2] * 3.3f / 4096.0f - ADC_REF_VOLTAGE;
-    adc_values_converted->ic = -ADC_CURRENT_SCALE * (voltage - adc_offset.ic_offset);
+    adc_values_converted->ic = ADC_CURRENT_SCALE * (voltage - adc_offset.ic_offset);
 
     adc_values_converted->udc = ADC_UDC_SCALE * (adc_buf[3] * 3.3f / 4096.0f);
 }
