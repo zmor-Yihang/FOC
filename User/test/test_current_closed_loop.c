@@ -20,8 +20,8 @@ void test_current_closed_loop(void)
     /* 初始化PID控制器 - 降低参数和限幅防止过冲 */
     /* 电流环输出限幅不超过Udc/√3，避免过调制 */
     float v_limit = U_DC * 0.557f; /* 约6.75V */
-    pid_init(&pid_id, 0.017f, 0.000035f, 0.0f, v_limit / 2, -v_limit / 2);
-    pid_init(&pid_iq, 0.017f, 0.000035f, 0.0f, v_limit / 2, -v_limit / 2);
+    pid_init(&pid_id, 0.017f, 0.00035f, 0.0f, v_limit / 2, -v_limit / 2);
+    pid_init(&pid_iq, 0.017f, 0.00035f, 0.0f, v_limit / 2, -v_limit / 2);
 
     /* 初始化FOC句柄 */
     foc_init(&foc_handle, &pid_id, &pid_iq, NULL);
