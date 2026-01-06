@@ -39,7 +39,7 @@ dq_t park_transform(alphabeta_t alpha_beta, float theta)
 
     float sin_theta, cos_theta;
 
-    // 使用快速正弦余弦函数计算sinθ和cosθ
+    // 计算sinθ和cosθ
     fast_sin_cos(theta, &sin_theta, &cos_theta);
 
     // id = iα*cosθ + iβ*sinθ
@@ -57,11 +57,10 @@ alphabeta_t ipark_transform(dq_t dq, float theta)
 
     float sin_theta, cos_theta;
 
-    // 快速正弦余弦函数计算sinθ和cosθ
+    // 计算sinθ和cosθ
     fast_sin_cos(theta, &sin_theta, &cos_theta);
 
-    // 反Park变换公式实现
-    // Iα = Id*cosθ - Iq*sinθ
+    // 反Park变换公式 Iα = Id*cosθ - Iq*sinθ
     alpha_beta.alpha = dq.d * cos_theta - dq.q * sin_theta;
 
     // Iβ = Id*sinθ + Iq*cosθ

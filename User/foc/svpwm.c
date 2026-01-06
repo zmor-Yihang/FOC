@@ -56,92 +56,64 @@
 abc_t svpwm_update(alphabeta_t u_alphabeta)
 {
     abc_t duty;
-    uint8_t bSector;
-    float wX, wY, wZ, wUAlpha, wUBeta;
-    float hTimePhA = 0, hTimePhB = 0, hTimePhC = 0;
-    
-    /* ============ 1. 计算中间变量 ============ */
-    // 归一化到周期T（这里用1.0表示满周期）
-    wUAlpha = u_alphabeta.alpha * 1.732051f / U_DC;  // Valpha * sqrt(3) / Udc
-    wUBeta  = -u_alphabeta.beta / U_DC;               // -Vbeta / Udc (注意负号!)
-    
-    wX = wUBeta;
-    wY = (wUBeta + wUAlpha) / 2.0f;
-    wZ = (wUBeta - wUAlpha) / 2.0f;
-    
-    /* ============ 2. 扇区判断 ============ */
-    if (wY < 0)
+    uint8_t sector;
+    float x, y, z, u_alpha, u_beta;
+    float time_phase_a = 0, time_phase_b = 0, time_phase_c = 0;
+
+    // 归一化到周期T
+    u_alpha = u_alphabeta.alpha * 1.732051f / U_DC; // Valpha * sqrt(3) / Udc
+    u_beta = -u_alphabeta.beta / U_DC;              // -Vbeta / Udc
+
+    // 计算中间变量x, y, z
+    x = u_beta;
+    y = (u_beta + u_alpha) / 2.0f;
+    z = (u_beta - u_alpha) / 2.0f;
+
+    // 判断扇区
+    if (y < 0 && z < 0)
+        sector = 5;
+    else if (y >= 0 && z >= 0)
+        sector = 2;
+    else if (y < 0 && z >= 0)
+        sector = (x > 0) ? 3 : 4;
+    else // y >= 0 && z < 0
+        sector = (x > 0) ? 1 : 6;
+
+    // 计算各相的作用时间
+    switch (sector)
     {
-        if (wZ < 0)
-        {
-            bSector = 5;
-        }
-        else  // wZ >= 0
-        {
-            if (wX <= 0)
-            {
-                bSector = 4;
-            }
-            else  // wX > 0
-            {
-                bSector = 3;
-            }
-        }
+    case 1:
+    case 4:
+        time_phase_a = (1.0f + x - z) / 2.0f;
+        time_phase_b = time_phase_a + z;
+        time_phase_c = time_phase_b - x;
+        break;
+
+    case 2:
+    case 5:
+        time_phase_a = (1.0f + y - z) / 2.0f;
+        time_phase_b = time_phase_a + z;
+        time_phase_c = time_phase_a - y;
+        break;
+
+    case 3:
+    case 6:
+        time_phase_a = (1.0f - x + y) / 2.0f;
+        time_phase_c = time_phase_a - y;
+        time_phase_b = time_phase_c + x;
+        break;
+
+    default:
+        time_phase_a = 0.5f;
+        time_phase_b = 0.5f;
+        time_phase_c = 0.5f;
+        break;
     }
-    else  // wY >= 0
-    {
-        if (wZ >= 0)
-        {
-            bSector = 2;
-        }
-        else  // wZ < 0
-        {
-            if (wX <= 0)
-            {
-                bSector = 6;
-            }
-            else  // wX > 0
-            {
-                bSector = 1;
-            }
-        }
-    }
-    
-    /* ============ 3. 根据扇区计算三相占空比 ============ */
-    switch (bSector)
-    {
-        case 1:
-        case 4:
-            hTimePhA = (1.0f + wX - wZ) / 2.0f;
-            hTimePhB = hTimePhA + wZ;
-            hTimePhC = hTimePhB - wX;
-            break;
-            
-        case 2:
-        case 5:
-            hTimePhA = (1.0f + wY - wZ) / 2.0f;
-            hTimePhB = hTimePhA + wZ;
-            hTimePhC = hTimePhA - wY;
-            break;
-            
-        case 3:
-        case 6:
-            hTimePhA = (1.0f - wX + wY) / 2.0f;
-            hTimePhC = hTimePhA - wY;
-            hTimePhB = hTimePhC + wX;
-            break;
-            
-        default:
-            hTimePhA = 0.5f;
-            hTimePhB = 0.5f;
-            hTimePhC = 0.5f;
-            break;
-    }
-    
-    /* ============ 4. 限幅保护 ============ */
-    duty.a = (hTimePhA > 1.0f) ? 1.0f : ((hTimePhA < 0.0f) ? 0.0f : hTimePhA);
-    duty.b = (hTimePhB > 1.0f) ? 1.0f : ((hTimePhB < 0.0f) ? 0.0f : hTimePhB);
-    duty.c = (hTimePhC > 1.0f) ? 1.0f : ((hTimePhC < 0.0f) ? 0.0f : hTimePhC);
-    
+
+    // 防止过调制 
+    duty.a = (time_phase_a > 1.0f) ? 1.0f : ((time_phase_a < 0.0f) ? 0.0f : time_phase_a);
+    duty.b = (time_phase_b > 1.0f) ? 1.0f : ((time_phase_b < 0.0f) ? 0.0f : time_phase_b);
+    duty.c = (time_phase_c > 1.0f) ? 1.0f : ((time_phase_c < 0.0f) ? 0.0f : time_phase_c);
+
     return duty;
 }

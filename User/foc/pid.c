@@ -124,29 +124,3 @@ void pid_reset(pid_controller_t *pid)
     pid->integral = 0.0f;
     pid->out = 0.0f;
 }
-
-/**
- * @brief 设置PID参数
- * @param pid PID控制器结构体指针
- * @param kp 比例系数
- * @param ki 积分系数
- * @param kd 微分系数
- */
-void pid_set_params(pid_controller_t *pid, float kp, float ki, float kd)
-{
-    pid->kp = kp;
-    pid->ki = ki;
-    pid->kd = kd;
-}
-
-/**
- * @brief 设置输出限幅
- * @param pid PID控制器结构体指针
- * @param out_max 输出上限
- * @param out_min 输出下限
- */
-void pid_set_limits(pid_controller_t *pid, float out_max, float out_min)
-{
-    pid->out_max = out_max;
-    pid->out_min = out_min;
-}
