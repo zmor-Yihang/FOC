@@ -24,7 +24,7 @@ void test_foc_open(void)
 
         if (key_scan() == 1)
         {
-            tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
+            tim1_set_pwm_duty(0.0f, 0.0f, 0.0f);
             break;
         }
     }

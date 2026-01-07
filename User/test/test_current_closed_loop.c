@@ -21,8 +21,8 @@ void test_current_closed_loop(void)
 {
     /* 初始化PID控制器 - 降低参数和限幅防止过冲 */
     float v_limit = U_DC * 0.5;
-    pid_init(&pid_id, 0.017f, 0.00035f, 0.0f, v_limit, -v_limit);
-    pid_init(&pid_iq, 0.017f, 0.00035f, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_id, 0.017f, 0.00035f, 0.0f, v_limit * 0.5, -v_limit * 0.5);
+    pid_init(&pid_iq, 0.017f, 0.00035f, 0.0f, v_limit * 0.5, -v_limit * 0.5);
 
     /* 初始化FOC句柄 */
     foc_init(&foc_handle, &pid_id, &pid_iq, NULL);

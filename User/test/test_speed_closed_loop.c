@@ -36,8 +36,8 @@ void test_speed_closed_loop(void)
     );
 
     float v_limit = U_DC * 0.5;
-    pid_init(&pid_id, 0.017f, 0.00035f, 0.0f, v_limit, -v_limit);
-    pid_init(&pid_iq, 0.017f, 0.00035f, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_id, 0.017f, 0.00035f, 0.0f, v_limit * 0.5, -v_limit * 0.5);
+    pid_init(&pid_iq, 0.017f, 0.00035f, 0.0f, v_limit * 0.5, -v_limit * 0.5);
 
     /* 初始化FOC句柄 - 传入速度环PID控制器 */
     foc_init(&foc_handle, &pid_id, &pid_iq, &pid_speed);
@@ -46,7 +46,7 @@ void test_speed_closed_loop(void)
     foc_alignment(&foc_handle);
 
     /* 软启动：初始目标速度为0（单位：RPM） */
-    target_speed_final = 6000.0f;
+    target_speed_final = 3000.0f;
     target_speed_ramp = 0.0f;
     step_index = 0;
     step_counter = 0;
