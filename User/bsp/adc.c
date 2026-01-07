@@ -13,6 +13,9 @@ static uint16_t adc_injected_buf[4] = {0};
 /* 三相电流零点补偿 */
 static adc_offset_t adc_offset = {0};
 
+/* ADC注入组中断回调函数指针 */
+static adc_injected_callback_p adc_injected_callback = NULL;
+
 /* 转换原始ADC值为实际电流和电压 */
 static void adc1_value_convert(uint16_t *adc_buf, adc_values_t *adc_values_converted)
 {
@@ -196,6 +199,12 @@ void adc1_get_injected_values(adc_values_t *values)
     adc1_value_convert(adc_injected_buf, values);
 }
 
+/* 注册ADC注入组中断回调函数 */
+void adc1_register_injected_callback(adc_injected_callback_p callback)
+{
+    adc_injected_callback = callback;
+}
+
 /* ADC注入组转换完成中断处理函数 */
 void ADC1_2_IRQHandler(void)
 {
@@ -213,7 +222,10 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
         adc_injected_buf[2] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_3);
         adc_injected_buf[3] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_4);
 
-        current_closed_loop_handler();
-        speed_closed_loop_handler();
+        /* 调用注册的回调函数 */
+        if (adc_injected_callback != NULL)
+        {
+            adc_injected_callback();
+        }
     }
 }

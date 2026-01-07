@@ -1,20 +1,21 @@
 #include "test_speed_closed_loop.h"
 
+static void speed_closed_loop_handler(void);
+
 /* 静态变量定义 */
-static pid_controller_t pid_speed;             /* 速度环PID */
-static pid_controller_t pid_id;                /* D轴电流环PID */
-static pid_controller_t pid_iq;                /* Q轴电流环PID */
-static foc_t foc_handle;                       /* FOC控制句柄 */
-static volatile uint8_t speed_loop_enable = 0; /* 速度环使能标志 */
-static volatile float target_speed_ramp = 0.0f;         /* 目标速度斜坡值 */
-static float target_speed_final = 0.0f;        /* 最终目标速度 */
-static volatile uint8_t stop_request = 0;      /* 停机请求标志 */
-static uint8_t step_index = 0;                 /* 当前阶梯索引 (0-6) */
-static uint32_t step_counter = 0;              /* 阶梯保持计数器 */
-static uint32_t step_hold_time = 2000;         /* 每个阶梯保持时间（中断次数） */
-static float step_speed_start = 0.0f;          /* 当前阶梯起始速度 */
-static float step_speed_target = 0.0f;         /* 当前阶梯目标速度 */
-static float ramp_increment = 0.5f;            /* 斜坡增量 (RPM/中断) */
+static pid_controller_t pid_speed;              /* 速度环PID */
+static pid_controller_t pid_id;                 /* D轴电流环PID */
+static pid_controller_t pid_iq;                 /* Q轴电流环PID */
+static foc_t foc_handle;                        /* FOC控制句柄 */
+static volatile float target_speed_ramp = 0.0f; /* 目标速度斜坡值 */
+static float target_speed_final = 0.0f;         /* 最终目标速度 */
+static volatile uint8_t stop_request = 0;       /* 停机请求标志 */
+static uint8_t step_index = 0;                  /* 当前阶梯索引 (0-6) */
+static uint32_t step_counter = 0;               /* 阶梯保持计数器 */
+static uint32_t step_hold_time = 2000;          /* 每个阶梯保持时间（中断次数） */
+static float step_speed_start = 0.0f;           /* 当前阶梯起始速度 */
+static float step_speed_target = 0.0f;          /* 当前阶梯目标速度 */
+static float ramp_increment = 0.5f;             /* 斜坡增量 (RPM/中断) */
 /* 供打印使用：在 ISR 中写入，在主循环打印，避免在 ISR 中阻塞 */
 static volatile float current_speed = 0.0f;
 static volatile float actual_speed = 0.0f;
@@ -59,8 +60,8 @@ void test_speed_closed_loop(void)
     printf("Speed Closed Loop Test Start!\r\n");
     printf("Target Speed: %.2f RPM\r\n", target_speed_final);
 
-    /* 使能速度环 */
-    speed_loop_enable = 1;
+    /* 注册ADC注入组中断回调函数，开始控制 */
+    adc1_register_injected_callback(speed_closed_loop_handler);
 
     /* 主循环：等待按键退出 */
     while (1)
@@ -88,11 +89,11 @@ void test_speed_closed_loop(void)
         /* 检查是否停机完成 */
         if (stop_request && fabsf(actual_speed) < 10.0f)
         {
-            /* 速度降到接近0，关闭速度环 */
-            speed_loop_enable = 0;
+            /* 速度降到接近0，注销回调停止控制 */
+            adc1_register_injected_callback(NULL);
 
             /* 停止PWM输出 */
-            tim1_set_pwm_duty(0, 0, 0);
+            tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
 
             /* 复位PID */
             pid_reset(&pid_speed);
@@ -108,14 +109,9 @@ void test_speed_closed_loop(void)
     printf("Speed Closed Loop Test Stop!\r\n");
 }
 
-/* ADC注入组中断回调中调用的速度闭环处理函数 */
-void speed_closed_loop_handler(void)
+/* ADC注入组中断回调中调用的速度闭环处理函数 (内部使用) */
+static void speed_closed_loop_handler(void)
 {
-    if (!speed_loop_enable)
-    {
-        return;
-    }
-
     /* 阶梯启动：6个阶梯，每个阶梯内部使用斜坡加速 */
     if (target_speed_ramp < target_speed_final)
     {

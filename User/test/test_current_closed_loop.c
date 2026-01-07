@@ -1,13 +1,15 @@
 #include "test_current_closed_loop.h"
 
+// 声明静态回调函数
+static void current_closed_loop_handler(void);
+
 /* 静态变量定义 */
-static pid_controller_t pid_id;                  /* D轴电流环PID */
-static pid_controller_t pid_iq;                  /* Q轴电流环PID */
-static foc_t foc_handle;                         /* FOC控制句柄 */
-static volatile uint8_t current_loop_enable = 0; /* 电流环使能标志 */
-static float target_iq_ramp = 0.0f;              /* Iq目标电流斜坡值 */
-static float target_iq_final = 0.0f;             /* Iq最终目标电流 */
-static volatile uint8_t stop_request = 0;        /* 停机请求标志 */
+static pid_controller_t pid_id;           /* D轴电流环PID */
+static pid_controller_t pid_iq;           /* Q轴电流环PID */
+static foc_t foc_handle;                  /* FOC控制句柄 */
+static float target_iq_ramp = 0.0f;       /* Iq目标电流斜坡值 */
+static float target_iq_final = 0.0f;      /* Iq最终目标电流 */
+static volatile uint8_t stop_request = 0; /* 停机请求标志 */
 /* 供打印使用：在 ISR 中写入，在主循环打印，避免在 ISR 中阻塞 */
 static volatile float current_d = 0.0f;
 static volatile float current_q = 0.0f;
@@ -38,8 +40,8 @@ void test_current_closed_loop(void)
     printf("Current Closed Loop Test Start!\r\n");
     printf("Target Id: %.2f A, Target Iq: %.2f A\r\n", foc_handle.target_Id, target_iq_final);
 
-    /* 使能电流环 */
-    current_loop_enable = 1;
+    /* 注册ADC注入组中断回调函数，开始控制 */
+    adc1_register_injected_callback(current_closed_loop_handler);
 
     /* 主循环：等待按键退出 */
     while (1)
@@ -65,11 +67,11 @@ void test_current_closed_loop(void)
         /* 检查是否停机完成 */
         if (stop_request && fabsf(actual_speed) < 10.0f)
         {
-            /* 转速降到接近0，关闭电流环 */
-            current_loop_enable = 0;
+            /* 转速降到接近0，注销回调停止控制 */
+            adc1_register_injected_callback(NULL);
 
             /* 停止PWM输出 */
-            tim1_set_pwm_duty(0, 0, 0);
+            tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
 
             /* 复位PID */
             pid_reset(&pid_id);
@@ -84,14 +86,9 @@ void test_current_closed_loop(void)
     printf("Current Closed Loop Test Stop!\r\n");
 }
 
-/* ADC注入组中断回调中调用的电流闭环处理函数 */
-void current_closed_loop_handler(void)
+/* ADC注入组中断回调中调用的电流闭环处理函数 (内部使用) */
+static void current_closed_loop_handler(void)
 {
-    if (!current_loop_enable)
-    {
-        return;
-    }
-
     /* 软启动斜坡：逐渐增加目标电流 */
     if (target_iq_ramp < target_iq_final)
     {
@@ -121,7 +118,7 @@ void current_closed_loop_handler(void)
     as5047_update_speed();
     /* 以 RPM 保存用于显示 */
     actual_speed = as5047_get_speed_rpm();
-    
+
     /* 获取电角度 */
     float angle_mech = as5047_get_angle_rad();                                 /* 机械角度 (rad) */
     float angle_el = (angle_mech - foc_handle.angle_offset) * MOTOR_POLE_PAIR; /* 电角度 (rad) */

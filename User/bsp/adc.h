@@ -3,8 +3,6 @@
 
 #include "stm32g4xx_hal.h"
 #include "config/type_config.h"
-#include "test/test_current_closed_loop.h"
-#include "test/test_speed_closed_loop.h"
 
 /* 三相电流零点补偿值 */
 typedef struct
@@ -13,6 +11,9 @@ typedef struct
     float ib_offset;
     float ic_offset;
 } adc_offset_t;
+
+/* ADC注入组中断回调函数类型 */
+typedef void (*adc_injected_callback_p)(void);
 
 /* ADC句柄声明 */
 extern ADC_HandleTypeDef hadc1;
@@ -27,5 +28,8 @@ void adc1_get_offset(adc_offset_t *offsets); /* 调试接口，仅供测试使�
 void adc1_init(void);
 void adc1_get_regular_values(adc_values_t *values);
 void adc1_get_injected_values(adc_values_t *values);
+
+/* 注册ADC注入组中断回调函数 */
+void adc1_register_injected_callback(adc_injected_callback_p callback);
 
 #endif /* __ADC_H__ */
