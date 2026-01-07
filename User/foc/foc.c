@@ -1,28 +1,5 @@
 #include "foc.h"
 
-/* 低通滤波器初始化 */
-void lpf_init(lpf_t *lpf, float alpha)
-{
-    lpf->alpha = alpha;
-    lpf->output = 0.0f;
-    lpf->initialized = 0.0f;
-}
-
-/* 低通滤波器更新 */
-float lpf_update(lpf_t *lpf, float input)
-{
-    if (!lpf->initialized)
-    {
-        lpf->output = input;
-        lpf->initialized = 1.0f;
-    }
-    else
-    {
-        lpf->output = lpf->alpha * input + (1.0f - lpf->alpha) * lpf->output;
-    }
-    return lpf->output;
-}
-
 void foc_init(foc_t* handle, pid_controller_t *pid_id, pid_controller_t *pid_iq, pid_controller_t *pid_speed)
 {
     handle->target_speed = 0;
@@ -46,9 +23,6 @@ void foc_init(foc_t* handle, pid_controller_t *pid_id, pid_controller_t *pid_iq,
     handle->duty_cycle.c = 0.0f;
 
     handle->angle_offset = 0.0f;
-
-    lpf_init(&handle->lpf_id, 0.1f);
-    lpf_init(&handle->lpf_iq, 0.1f);
 }
 
 void foc_set_target_id(foc_t *handle, float target_Id)

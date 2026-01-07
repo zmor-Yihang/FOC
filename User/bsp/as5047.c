@@ -11,11 +11,12 @@ static struct
 {
     uint16_t last_angle_raw;   /* 上一次的角度原始值 */
     float last_angle_rad;      /* 上一次的角度值 (rad) */
-    float speed_rpm;           /* 当前转速 (RPM) */
-    float speed_rad_s;         /* 当前角速度 (rad/s) */
-    int64_t total_angle_count; /* 累计角度计数 (处理圈数) */
-    uint32_t last_update_time; /* 上一次更新时间 (ms) */
-} as5047_speed_data = {0, 0.0f, 0.0f, 0.0f, 0, 0};
+    float speed_rpm;           /* 原始转速 (RPM) - 未滤波 */
+    float speed_rpm_lpf;       /* 低通滤波后的转速 (RPM) */
+    int32_t theta_sum;         /* 角度增量累加值 (用于速度计算) */
+    uint8_t update_cnt;        /* 更新计数器 (用于分频) */
+    uint8_t is_initialized;    /* 初始化标志位 */
+} as5047_speed_data = {0, 0.0f, 0.0f, 0.0f, 0, 0, 0};
 
 /**
  * @brief 计算奇偶校验位
@@ -44,7 +45,7 @@ static uint16_t as5047_spi_transfer(uint16_t tx_data)
 
     AS5047_CS_LOW();
 
-    HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)&tx_data, (uint8_t *)&rx_data, 1, 1000);
+    HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)&tx_data, (uint8_t *)&rx_data, 1, 1);
 
     AS5047_CS_HIGH();
 
@@ -90,53 +91,69 @@ static uint16_t as5047_get_angle_raw(void)
 
 /**
  * @brief 更新 AS5047P 速度数据
- * @note  处理角度翻转（0->2PI 或 2PI->0），应在固定采样周期中调用
- * @note  计算频率为10KHz, ADC中断中调用
+ * @note  处理角度翻转（0->2PI 或 2PI->0），固定采样周期中调用
+ * @note  调用频率为10KHz (ADC注入中断)
+ * @note  每10次中断累加delta_raw，每1ms(1kHz)计算一次速度
  */
 void as5047_update_speed(void)
 {
+    /* 读取当前角度原始值 (0~16383) */
     uint16_t current_angle_raw = as5047_get_angle_raw();
-    uint32_t current_time = HAL_GetTick();
 
-    if (as5047_speed_data.last_update_time == 0)
+    /* 首次调用时初始化所有变量 */
+    if (!as5047_speed_data.is_initialized)
     {
-        as5047_speed_data.last_angle_raw = current_angle_raw;
-        as5047_speed_data.last_angle_rad = ((float)current_angle_raw / AS5047_RESOLUTION) * 2.0f * M_PI;
-        as5047_speed_data.last_update_time = current_time;
-        as5047_speed_data.speed_rpm = 0.0f;
-        as5047_speed_data.speed_rad_s = 0.0f;
+        as5047_speed_data.last_angle_raw = current_angle_raw;      // 记录初始角度原始值
+        as5047_speed_data.last_angle_rad = ((float)current_angle_raw / AS5047_RESOLUTION) * 2.0f * M_PI;  // 记录初始角度(弧度)
+        as5047_speed_data.speed_rpm = 0.0f;                        // 初始转速为0
+        as5047_speed_data.speed_rpm_lpf = 0.0f;                    // 初始滤波转速为0
+        as5047_speed_data.theta_sum = 0;                           // 清零角度增量累加器
+        as5047_speed_data.update_cnt = 0;                          // 清零更新计数器
+        as5047_speed_data.is_initialized = 1;                      // 标记已初始化
         return;
     }
 
-    // 中断中调用，固定采样时间
-    float dt = AS5047_SPEED_SAMPLE_TIME;
-
+    /* 计算本次角度增量 delta_raw (当前角度 - 上次角度) */
     int32_t delta_raw = (int32_t)current_angle_raw - (int32_t)as5047_speed_data.last_angle_raw;
 
-    // 当角度增量超过半分辨率时，判断为角度翻转
+    /* 处理角度翻转：当角度增量超过半圈时，判断为跨越0点 */
+    /* 例如：从16000跳到100，delta_raw = -15900，实际应该是+484 */
     if (delta_raw > AS5047_RESOLUTION / 2)
     {
-        delta_raw -= AS5047_RESOLUTION;
+        delta_raw -= AS5047_RESOLUTION;  // 正向翻转修正 (0->16383)
     }
     else if (delta_raw < -AS5047_RESOLUTION / 2)
     {
-        delta_raw += AS5047_RESOLUTION;
+        delta_raw += AS5047_RESOLUTION;  // 反向翻转修正 (16383->0)
     }
 
-    float delta_angle = ((float)delta_raw / AS5047_RESOLUTION) * 2.0f * M_PI;
+    /* theta_sum: 用于速度计算，每1ms清零一次 */
+    as5047_speed_data.theta_sum += delta_raw;
+    
+    /* update_cnt: 更新计数器，每调用一次+1，用于分频(10kHz->1kHz) */
+    as5047_speed_data.update_cnt++;
 
-    as5047_speed_data.total_angle_count += delta_raw;
+    /* 每10次中断 (1ms/1kHz) 计算一次速度 */
+    if (as5047_speed_data.update_cnt >= AS5047_SPEED_CALC_DIV)
+    {
+        /* 计算转速 (RPM): 
+         * speed_rpm = (角度变化量 / 一圈分辨率) * 60秒 / 采样时间
+         * 例如：theta_sum=1638, 则转了0.1圈, 在0.001秒内, 速度=0.1*60/0.001=6000RPM
+         */
+        as5047_speed_data.speed_rpm = ((float)as5047_speed_data.theta_sum / AS5047_RESOLUTION) * 60.0f / AS5047_SPEED_SAMPLE_TIME;
 
-    float speed_raw = delta_angle / dt;
+        /* 一阶低通滤波，平滑转速波动，用于显示 */
+        as5047_speed_data.speed_rpm_lpf = AS5047_SPEED_FILTER_ALPHA * as5047_speed_data.speed_rpm +
+                                          (1.0f - AS5047_SPEED_FILTER_ALPHA) * as5047_speed_data.speed_rpm_lpf;
 
-    // 正常滤波
-    as5047_speed_data.speed_rad_s = AS5047_SPEED_FILTER_ALPHA * speed_raw +
-                                    (1.0f - AS5047_SPEED_FILTER_ALPHA) * as5047_speed_data.speed_rad_s;
+        /* 清零短期累加器和计数器，准备下一个1ms周期 */
+        as5047_speed_data.theta_sum = 0;
+        as5047_speed_data.update_cnt = 0;
+    }
 
-    as5047_speed_data.speed_rpm = as5047_speed_data.speed_rad_s * 9.549297f;
-    as5047_speed_data.last_angle_raw = current_angle_raw;
-    as5047_speed_data.last_angle_rad = ((float)current_angle_raw / AS5047_RESOLUTION) * 2.0f * M_PI;
-    as5047_speed_data.last_update_time = current_time;
+    /* 更新历史数据，供下次调用使用 */
+    as5047_speed_data.last_angle_raw = current_angle_raw;  // 保存当前角度原始值
+    as5047_speed_data.last_angle_rad = ((float)current_angle_raw / AS5047_RESOLUTION) * 2.0f * M_PI;  // 保存当前角度(弧度)
 }
 
 void as5047_init(void)
@@ -170,12 +187,21 @@ float as5047_get_angle_rad(void)
 }
 
 /**
- * @brief 读取转速 (RPM)
+ * @brief 读取转速 (RPM) - 未滤波, 用于速度反馈控制
  * @note  返回最近一次更新的速度值，需先调用 as5047_update_speed() 更新速度
  */
 float as5047_get_speed_rpm(void)
 {
     return as5047_speed_data.speed_rpm;
+}
+
+/**
+ * @brief 读取滤波后的转速 (RPM) - 用于显示
+ * @note  返回最近一次更新的滤波后速度值，需先调用 as5047_update_speed() 更新速度
+ */
+float as5047_get_speed_rpm_lpf(void)
+{
+    return as5047_speed_data.speed_rpm_lpf;
 }
 
 /**

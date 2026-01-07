@@ -42,10 +42,6 @@ void test_speed_closed_loop(void)
     /* 初始化FOC句柄 - 传入速度环PID控制器 */
     foc_init(&foc_handle, &pid_id, &pid_iq, &pid_speed);
 
-    /* 初始化电流低通滤波器 */
-    lpf_init(&foc_handle.lpf_id, 0.2f);
-    lpf_init(&foc_handle.lpf_iq, 0.2f);
-
     /* 电机零点对齐 */
     foc_alignment(&foc_handle);
 
@@ -211,10 +207,6 @@ void speed_closed_loop_handler(void)
 
     /* Park变换: αβ -> dq */
     dq_t i_dq = park_transform(i_alphabeta, angle_el);
-
-    /* 电流低通滤波 */
-    i_dq.d = lpf_update(&foc_handle.lpf_id, i_dq.d);
-    i_dq.q = lpf_update(&foc_handle.lpf_iq, i_dq.q);
 
     /* 保存到可打印变量（ISR 内写入，主循环读取打印） */
     current_d = i_dq.d;

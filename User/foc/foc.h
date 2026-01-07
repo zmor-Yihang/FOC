@@ -21,12 +21,6 @@ void foc_set_target_id(foc_t *handle, float target_Id);
 void foc_set_target_iq(foc_t *handle, float target_Iq);
 void foc_set_target_speed(foc_t *handle, float target_speed);
 
-/* 低通滤波器函数 */
-float lpf_update(lpf_t *lpf, float input);
-void lpf_init(lpf_t *lpf, float alpha);
-
-
-
 /* 电机零点对齐 */
 void foc_alignment(foc_t *handle);
 
