@@ -20,10 +20,9 @@ static volatile float actual_speed = 0.0f;
 void test_current_closed_loop(void)
 {
     /* 初始化PID控制器 - 降低参数和限幅防止过冲 */
-    /* 电流环输出限幅不超过Udc/√3，避免过调制 */
-    float v_limit = U_DC * 0.557f; /* 约6.75V */
-    pid_init(&pid_id, 0.017f, 0.00035f, 0.0f, v_limit / 2, -v_limit / 2);
-    pid_init(&pid_iq, 0.017f, 0.00035f, 0.0f, v_limit / 2, -v_limit / 2);
+    float v_limit = U_DC * 0.5;
+    pid_init(&pid_id, 0.017f, 0.00035f, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_iq, 0.017f, 0.00035f, 0.0f, v_limit, -v_limit);
 
     /* 初始化FOC句柄 */
     foc_init(&foc_handle, &pid_id, &pid_iq, NULL);
@@ -34,11 +33,11 @@ void test_current_closed_loop(void)
     /* 软启动：初始目标电流为0 */
     target_iq_final = 0.5f;
     target_iq_ramp = 0.0f;
-    foc_set_target_id(&foc_handle, 0.0f);
-    foc_set_target_iq(&foc_handle, 0.0f);
+    foc_handle.target_id = 0.0f;
+    foc_handle.target_iq = 0.0f;
 
     printf("Current Closed Loop Test Start!\r\n");
-    printf("Target Id: %.2f A, Target Iq: %.2f A\r\n", foc_handle.target_Id, target_iq_final);
+    printf("Target Id: %.2f A, Target Iq: %.2f A\r\n", foc_handle.target_id, target_iq_final);
 
     /* 注册ADC注入组中断回调函数，开始控制 */
     adc1_register_injected_callback(current_closed_loop_handler);
@@ -59,7 +58,7 @@ void test_current_closed_loop(void)
 
             /* 设置目标电流为0，让电流环自然降流 */
             target_iq_final = 0.0f;
-            foc_set_target_iq(&foc_handle, 0.0f);
+            foc_handle.target_iq = 0.0f;
 
             printf("Stop request sent, reducing current to 0 A...\r\n");
         }
@@ -97,7 +96,7 @@ static void current_closed_loop_handler(void)
         {
             target_iq_ramp = target_iq_final;
         }
-        foc_handle.target_Iq = target_iq_ramp;
+        foc_handle.target_iq = target_iq_ramp;
     }
     else if (target_iq_ramp > target_iq_final)
     {
@@ -107,7 +106,7 @@ static void current_closed_loop_handler(void)
         {
             target_iq_ramp = target_iq_final;
         }
-        foc_handle.target_Iq = target_iq_ramp;
+        foc_handle.target_iq = target_iq_ramp;
     }
 
     /* 获取ADC注入组转换值 */
@@ -120,8 +119,8 @@ static void current_closed_loop_handler(void)
     actual_speed = as5047_get_speed_rpm();
 
     /* 获取电角度 */
-    float angle_mech = as5047_get_angle_rad();                                 /* 机械角度 (rad) */
-    float angle_el = (angle_mech - foc_handle.angle_offset) * MOTOR_POLE_PAIR; /* 电角度 (rad) */
+    float angle_mech = as5047_get_angle_rad();                                                        /* 机械角度 (rad) */
+    float angle_el = (angle_mech - foc_handle.angle_offset) * MOTOR_POLE_PAIR * foc_handle.motor_dir; /* 电角度 (rad) */
 
     /* 三相电流 */
     abc_t i_abc = {

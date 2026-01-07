@@ -60,8 +60,8 @@ typedef struct
 
     /* 目标值 */
     float target_speed;
-    float target_Id;
-    float target_Iq;
+    float target_id;
+    float target_iq;
 
     /* 电压控制量 */
     float v_d_out; /* D轴目标电压, 电流环输出，实际值 */
@@ -78,6 +78,7 @@ typedef struct
 
     /* 编码器零点偏移 */
     float angle_offset; /* 编码器零点偏移角 (rad)，用于计算实际电角度 */
+    int8_t motor_dir;   /* 电机方向：1=正向，-1=反向 */
 } foc_t;
 
 #endif /* __TYPE_CONFIG_H__ */

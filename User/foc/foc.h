@@ -17,10 +17,6 @@
 // FOC控制函数
 void foc_init(foc_t* handle, pid_controller_t *pid_id, pid_controller_t *pid_iq, pid_controller_t *pid_speed);
 
-void foc_set_target_id(foc_t *handle, float target_Id);
-void foc_set_target_iq(foc_t *handle, float target_Iq);
-void foc_set_target_speed(foc_t *handle, float target_speed);
-
 /* 电机零点对齐 */
 void foc_alignment(foc_t *handle);
 

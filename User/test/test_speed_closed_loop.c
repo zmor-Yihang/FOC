@@ -35,10 +35,9 @@ void test_speed_closed_loop(void)
              -2.0f     /* 输出下限 */
     );
 
-    /* 电流环输出限幅不超过Udc/√3，避免过调制 */
-    float v_limit = U_DC * 0.557f; /* 约6.75V */
-    pid_init(&pid_id, 0.017f, 0.00035f, 0.0f, v_limit / 2, -v_limit / 2);
-    pid_init(&pid_iq, 0.017f, 0.00035f, 0.0f, v_limit / 2, -v_limit / 2);
+    float v_limit = U_DC * 0.5;
+    pid_init(&pid_id, 0.017f, 0.00035f, 0.0f, v_limit, -v_limit);
+    pid_init(&pid_iq, 0.017f, 0.00035f, 0.0f, v_limit, -v_limit);
 
     /* 初始化FOC句柄 - 传入速度环PID控制器 */
     foc_init(&foc_handle, &pid_id, &pid_iq, &pid_speed);
@@ -53,9 +52,9 @@ void test_speed_closed_loop(void)
     step_counter = 0;
     step_speed_start = 0.0f;
     step_speed_target = 0.0f;
-    foc_set_target_id(&foc_handle, 0.0f);
-    foc_set_target_iq(&foc_handle, 0.0f);
-    foc_set_target_speed(&foc_handle, 0.0f);
+    foc_handle.target_id = 0.0f;
+    foc_handle.target_iq = 0.0f;
+    foc_handle.target_speed = 0.0f;
 
     printf("Speed Closed Loop Test Start!\r\n");
     printf("Target Speed: %.2f RPM\r\n", target_speed_final);
@@ -81,7 +80,7 @@ void test_speed_closed_loop(void)
 
             /* 设置目标速度为0，让速度环自然减速 */
             target_speed_final = 0.0f;
-            foc_set_target_speed(&foc_handle, 0.0f);
+            foc_handle.target_speed = 0.0f;
 
             printf("Stop request sent, decelerating to 0 RPM...\r\n");
         }
@@ -188,8 +187,8 @@ static void speed_closed_loop_handler(void)
     adc1_get_injected_values(&adc_values);
 
     /* 获取电角度 */
-    float angle_mech = as5047_get_angle_rad();                                 /* 机械角度 (rad) */
-    float angle_el = (angle_mech - foc_handle.angle_offset) * MOTOR_POLE_PAIR; /* 电角度 (rad) */
+    float angle_mech = as5047_get_angle_rad();                                                        /* 机械角度 (rad) */
+    float angle_el = (angle_mech - foc_handle.angle_offset) * MOTOR_POLE_PAIR * foc_handle.motor_dir; /* 电角度 (rad) */
 
     /* 三相电流 */
     abc_t i_abc = {
