@@ -2,7 +2,15 @@
 #define __ADC_H__
 
 #include "stm32g4xx_hal.h"
-#include "config/type_config.h"
+
+/* ADC 采样值结构体 */
+typedef struct
+{
+    float ia;
+    float ib;
+    float ic;
+    float udc;
+} adc_values_t;
 
 /* 三相电流零点补偿值 */
 typedef struct

@@ -2,7 +2,6 @@
 #define __TEST_PID_H__
 
 #include "foc/pid.h"
-#include "config/type_config.h"
 #include "utils/print.h"
 #include "bsp/usart.h"
 #include <stdio.h>

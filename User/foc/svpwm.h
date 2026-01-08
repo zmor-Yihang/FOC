@@ -1,8 +1,10 @@
 #ifndef __SVPWM_H__
 #define __SVPWM_H__
 
-#include "./config/type_config.h"
+#include "clark_park.h"
 #include "./utils/fast_sin_cos.h"
+
+#define U_DC 12.0f /* 直流母线电压 (V) */
 
 /**
  * @brief  SVPWM调制函数
