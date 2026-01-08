@@ -64,7 +64,7 @@ void foc_alignment(foc_t *handle)
 
     float theta_increment = 2.0f * MOTOR_POLE_PAIR * (M_PI / 180.0f);  /* 14度转弧度 ≈ 0.2443 rad */
 
-    for (int i = 0; i < 180; i++)  /* 180次 × 10ms = 1.8s */
+    for (int i = 0; i < 180; i++)  /* 180次 × 1ms = 0.18s */
     {
         theta_open += theta_increment;
 
@@ -72,7 +72,7 @@ void foc_alignment(foc_t *handle)
         duty = svpwm_update(v_alphabeta);
         tim1_set_pwm_duty(duty.a, duty.b, duty.c);
 
-        HAL_Delay(10);  /* 10ms周期 */
+        HAL_Delay(1);  /* 1ms周期 */
     }
 
     /* 读取旋转后的角度 */
@@ -94,7 +94,7 @@ void foc_alignment(foc_t *handle)
         angle_diff += 2.0f * M_PI;
 
     /* 判断方向：开环正转时，如果实际角度减小，说明方向相反 */
-    if (angle_diff < 0)
+    if (angle_diff <= 0)
     {
         motor_dir = -1;
         printf("Motor direction: REVERSE\n");
