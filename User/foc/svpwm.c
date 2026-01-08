@@ -49,71 +49,119 @@
 
 /**
  * @brief  标准SVPWM调制函数 (七段式，中心对齐PWM)
- * @param  u_alpha - α轴电压 (V)
- * @param  u_beta  - β轴电压 (V)
+ * @param  u_alphabeta - αβ轴电压 (V)
  * @retval duty - 输出的三相占空比 (范围 0.0 ~ 1.0)
+ * @note   参考《现代永磁同步电机控制原理及MATLAB仿真》 2.4.2节
  */
 abc_t svpwm_update(alphabeta_t u_alphabeta)
 {
     abc_t duty;
-    uint8_t sector;
-    float x, y, z, u_alpha, u_beta;
-    float time_phase_a = 0, time_phase_b = 0, time_phase_c = 0;
+    int32_t sector = 0;
+    float Tx, Ty, Ta, Tb, Tc;
+    float Tcmp1 = 0.0f, Tcmp2 = 0.0f, Tcmp3 = 0.0f;
+    float f_temp;
+    float v_alpha = u_alphabeta.alpha;
+    float v_beta = u_alphabeta.beta;
 
-    // 归一化到周期T
-    u_alpha = u_alphabeta.alpha * 1.732051f / U_DC; // Valpha * sqrt(3) / Udc
-    u_beta = -u_alphabeta.beta / U_DC;              // -Vbeta / Udc
+    /* 扇区判断 */
+    if (v_beta > 0.0f)
+    {
+        sector = 1;
+    }
+    if ((1.732051f * v_alpha - v_beta) / 2.0f > 0.0f)
+    {
+        sector += 2;
+    }
+    if ((-1.732051f * v_alpha - v_beta) / 2.0f > 0.0f)
+    {
+        sector += 4;
+    }
 
-    // 计算中间变量x, y, z
-    x = u_beta;
-    y = (u_beta + u_alpha) / 2.0f;
-    z = (u_beta - u_alpha) / 2.0f;
-
-    // 判断扇区
-    if (y < 0 && z < 0)
-        sector = 5;
-    else if (y >= 0 && z >= 0)
-        sector = 2;
-    else if (y < 0 && z >= 0)
-        sector = (x > 0) ? 3 : 4;
-    else // y >= 0 && z < 0
-        sector = (x > 0) ? 1 : 6;
-
-    // 计算各相的作用时间
+    /* 计算矢量作用时间 Tx, Ty (归一化到 Tpwm=1.0) */
     switch (sector)
     {
     case 1:
-    case 4:
-        time_phase_a = (1.0f + x - z) / 2.0f;
-        time_phase_b = time_phase_a + z;
-        time_phase_c = time_phase_b - x;
+        Tx = (-1.5f * v_alpha + 0.866025f * v_beta) / U_DC;
+        Ty = (1.5f * v_alpha + 0.866025f * v_beta) / U_DC;
         break;
-
     case 2:
-    case 5:
-        time_phase_a = (1.0f + y - z) / 2.0f;
-        time_phase_b = time_phase_a + z;
-        time_phase_c = time_phase_a - y;
+        Tx = (1.5f * v_alpha + 0.866025f * v_beta) / U_DC;
+        Ty = -(1.732051f * v_beta) / U_DC;
         break;
-
     case 3:
-    case 6:
-        time_phase_a = (1.0f - x + y) / 2.0f;
-        time_phase_c = time_phase_a - y;
-        time_phase_b = time_phase_c + x;
+        Tx = -((-1.5f * v_alpha + 0.866025f * v_beta) / U_DC);
+        Ty = (1.732051f * v_beta) / U_DC;
         break;
-
-    default:
-        time_phase_a = 0.5f;
-        time_phase_b = 0.5f;
-        time_phase_c = 0.5f;
+    case 4:
+        Tx = -(1.732051f * v_beta) / U_DC;
+        Ty = (-1.5f * v_alpha + 0.866025f * v_beta) / U_DC;
+        break;
+    case 5:
+        Tx = (1.732051f * v_beta) / U_DC;
+        Ty = -((1.5f * v_alpha + 0.866025f * v_beta) / U_DC);
+        break;
+    default: /* sector 6 */
+        Tx = -((1.5f * v_alpha + 0.866025f * v_beta) / U_DC);
+        Ty = -((-1.5f * v_alpha + 0.866025f * v_beta) / U_DC);
         break;
     }
 
-    // 防止过调制 
-    duty.a = (time_phase_a > 1.0f) ? 1.0f : ((time_phase_a < 0.0f) ? 0.0f : time_phase_a);
-    duty.b = (time_phase_b > 1.0f) ? 1.0f : ((time_phase_b < 0.0f) ? 0.0f : time_phase_b);
-    duty.c = (time_phase_c > 1.0f) ? 1.0f : ((time_phase_c < 0.0f) ? 0.0f : time_phase_c);
+    /* 过调制处理：限制 Tx + Ty <= 1.0 */
+    f_temp = Tx + Ty;
+    if (f_temp > 1.0f)
+    {
+        Tx /= f_temp;
+        Ty /= f_temp;
+    }
 
+    /* 计算七段式SVPWM的切换时间点 */
+    Ta = (1.0f - (Tx + Ty)) / 4.0f; /* 零矢量时间/4 */
+    Tb = Tx / 2.0f + Ta;
+    Tc = Ty / 2.0f + Tb;
+
+    /* 根据扇区分配三相占空比 */
+    switch (sector)
+    {
+    case 1:
+        Tcmp1 = Tb;
+        Tcmp2 = Ta;
+        Tcmp3 = Tc;
+        break;
+    case 2:
+        Tcmp1 = Ta;
+        Tcmp2 = Tc;
+        Tcmp3 = Tb;
+        break;
+    case 3:
+        Tcmp1 = Ta;
+        Tcmp2 = Tb;
+        Tcmp3 = Tc;
+        break;
+    case 4:
+        Tcmp1 = Tc;
+        Tcmp2 = Tb;
+        Tcmp3 = Ta;
+        break;
+    case 5:
+        Tcmp1 = Tc;
+        Tcmp2 = Ta;
+        Tcmp3 = Tb;
+        break;
+    case 6:
+        Tcmp1 = Tb;
+        Tcmp2 = Tc;
+        Tcmp3 = Ta;
+        break;
+    default:
+        Tcmp1 = 0.5f;
+        Tcmp2 = 0.5f;
+        Tcmp3 = 0.5f;
+        break;
+    }
+
+    /* 占空比限幅 */
+    duty.a = Tcmp1;
+    duty.b = Tcmp2;
+    duty.c = Tcmp3;
     return duty;
 }
