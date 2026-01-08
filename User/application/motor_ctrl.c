@@ -105,11 +105,11 @@ void motor_ctrl_bsp_init(void)
 void motor_ctrl_init(void)
 {
     /* 电流环 PI: Kp=0.017, Ki=0.002826, 输出限幅 ±U_DC/2 */
-    pid_init(&pid_id, 0.017f, 0.002826f, -U_DC / 2.0f, U_DC / 2.0f);
-    pid_init(&pid_iq, 0.017f, 0.002826f, -U_DC / 2.0f, U_DC / 2.0f);
+    pid_init(&pid_id, 0.017f, 0.0002826f, -U_DC / 4.0f, U_DC / 4.0f);
+    pid_init(&pid_iq, 0.017f, 0.0002826f, -U_DC / 4.0f, U_DC / 4.0f);
 
-    /* 速度环 PI: Kp=0.05, Ki=0.00002, 输出限幅 ±2A */
-    pid_init(&pid_speed, 0.05f, 0.00002f, -2.0f, 2.0f);
+    /* 速度环 PI: Kp=0.01, Ki=0.00002, 输出限幅 ±1A */
+    pid_init(&pid_speed, 0.01f, 0.00002f, -1.0f, 1.0f);
 
     /* 初始化 FOC 控制句柄 */
     foc_init(&foc_handle, &pid_id, &pid_iq, &pid_speed);
@@ -125,31 +125,56 @@ void motor_ctrl_init(void)
 
 void motor_ctrl_switch_mode(void)
 {
+    /* 关中断保护，防止与 ADC 中断回调竞态 */
+    __disable_irq();
+    
     switch (ctrl_mode)
     {
     case CTRL_MODE_IDLE:
-        ctrl_mode = CTRL_MODE_OPEN_LOOP;
+        /* 复位 PID，清除残留积分项 */
+        foc_closed_loop_stop(&foc_handle);
         foc_open_loop_set(100.0f, 1.0f); /* 默认 100RPM, 1V */
+        ctrl_mode = CTRL_MODE_OPEN_LOOP;
+        __enable_irq();
         printf("Mode: OPEN LOOP, 100RPM\n");
         break;
 
     case CTRL_MODE_OPEN_LOOP:
         foc_open_loop_stop();
-        ctrl_mode = CTRL_MODE_CURRENT;
+        /* 复位电流环 PID，清除积分项 */
+        pid_reset(&pid_id);
+        pid_reset(&pid_iq);
         foc_handle.target_id = 0.0f;
         foc_handle.target_iq = 0.5f;
+        ctrl_mode = CTRL_MODE_CURRENT;
+        __enable_irq();
         printf("Mode: CURRENT, Iq=0.5A\n");
         break;
 
     case CTRL_MODE_CURRENT:
+        /* 无扰切换：保持电流环状态连续，不复位！ */
+        /* pid_id 和 pid_iq 不能复位，否则电压输出断层 */
+        
+        /* 速度环积分项预设为当前 Iq 目标，实现无扰切换 */
+        pid_speed.integral = foc_handle.target_iq;
+        pid_speed.out = foc_handle.target_iq;
+        pid_speed.error = 0.0f;
+        
+        /* 斜坡从当前实际转速开始，避免速度误差突变 */
+        speed_ramp_current = as5047_get_speed_rpm();
+        speed_ramp_target = 3000.0f;
         ctrl_mode = CTRL_MODE_SPEED;
-        speed_ramp_target = 300.0f;
-        speed_ramp_current = 0.0f;  /* 从0开始斜坡 */
-        printf("Mode: SPEED, 300RPM\n");
+        __enable_irq();
+        printf("Mode: SPEED, 300RPM (bumpless)\n");
         break;
 
     case CTRL_MODE_SPEED:
-        motor_ctrl_stop();
+        ctrl_mode = CTRL_MODE_IDLE;  /* 先切换模式，阻止中断继续控制 */
+        speed_ramp_target = 0.0f;
+        speed_ramp_current = 0.0f;
+        foc_open_loop_stop();
+        foc_closed_loop_stop(&foc_handle);
+        __enable_irq();
         printf("Mode: IDLE\n");
         break;
     }
@@ -157,11 +182,13 @@ void motor_ctrl_switch_mode(void)
 
 void motor_ctrl_stop(void)
 {
+    __disable_irq();
     ctrl_mode = CTRL_MODE_IDLE;
     speed_ramp_target = 0.0f;
     speed_ramp_current = 0.0f;
     foc_open_loop_stop();
     foc_closed_loop_stop(&foc_handle);
+    __enable_irq();
 }
 
 void motor_ctrl_print_status(void)
