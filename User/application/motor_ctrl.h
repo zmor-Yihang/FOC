@@ -1,6 +1,18 @@
 #ifndef __MOTOR_CTRL_H__
 #define __MOTOR_CTRL_H__
 
+#include "bsp/clock.h"
+#include "bsp/usart.h"
+#include "bsp/key.h"
+#include "bsp/led.h"
+#include "bsp/adc.h"
+#include "bsp/tim.h"
+#include "bsp/as5047.h"
+#include "foc/clark_park.h"
+#include "foc/svpwm.h"
+#include "utils/print.h"
+#include <stdio.h>
+#include <math.h>
 #include "stm32g4xx_hal.h"
 #include "foc/foc.h"
 #include "foc/pid.h"
