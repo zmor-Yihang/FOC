@@ -23,117 +23,37 @@ void foc_init(foc_t* handle, pid_controller_t *pid_id, pid_controller_t *pid_iq,
     handle->duty_cycle.c = 0.0f;
 
     handle->angle_offset = 0.0f;
-    handle->motor_dir = 1;  /* 默认正向 */
 }
 
-/* 电机d轴对齐（带方向检测） */
 void foc_alignment(foc_t *handle)
 {
-    printf("Motor Alignment Start...\n");
-
-    float sum = 0;
-    float theta_open = 0.0f;           /* 开环角度 */
-    float angle_start = 0.0f;          /* 旋转前角度 */
-    float angle_end = 0.0f;            /* 旋转后角度 */
-    int8_t motor_dir = 1;              /* 电机方向：1=正向，-1=反向 */
-
-    /* D轴注入1.0V，将转子拉到电气角度0度 */
-    dq_t v_dq = {.d = 1.0f, .q = 0.0f};
-    alphabeta_t v_alphabeta = ipark_transform(v_dq, 0.0f);
-    abc_t duty = svpwm_update(v_alphabeta);
-    tim1_set_pwm_duty(duty.a, duty.b, duty.c);
-
-    HAL_Delay(500);
-
-    /* 读取多次取平均，减少噪声 */
-    sum = 0;
-    for (int i = 0; i < 100; i++)
+    /* 施加d轴电压，让转子对齐到电角度0位置 */
+    dq_t u_dq = {.d = 1.0f, .q = 0.0f};
+    
+    /* 开环输出，固定电角度为0 */
+    foc_open_loop(u_dq, 0);
+    
+    /* 等待转子稳定 */
+    HAL_Delay(100);
+    
+    /* 读取当前编码器机械角度作为零点偏移 */
+    float mech_angle = as5047_get_angle_rad();
+    
+    /* 计算电角度偏移 = 机械角度 × 极对数 */
+    handle->angle_offset = mech_angle * MOTOR_POLE_PAIR;
+    
+    /* 归一化到 [0, 2π) */
+    while (handle->angle_offset >= 2.0f * M_PI)
     {
-        sum += as5047_get_angle_rad();
-        HAL_Delay(1);
+        handle->angle_offset -= 2.0f * M_PI;
     }
-    float pos_init = sum / 100.0f;  /* 第一次零点记录 */
-    angle_start = pos_init;
-
-    printf("First zero point: %.4f rad\n", pos_init);
-
-    // 方向检测与旋转
-
-    v_dq.d = 0.5f;
-    v_dq.q = 0.0f;
-
-    float theta_increment = 2.0f * MOTOR_POLE_PAIR * (M_PI / 180.0f);  /* 14度转弧度 ≈ 0.2443 rad */
-
-    for (int i = 0; i < 180; i++)  /* 180次 × 1ms = 0.18s */
+    while (handle->angle_offset < 0.0f)
     {
-        theta_open += theta_increment;
-
-        v_alphabeta = ipark_transform(v_dq, theta_open);
-        duty = svpwm_update(v_alphabeta);
-        tim1_set_pwm_duty(duty.a, duty.b, duty.c);
-
-        HAL_Delay(1);  /* 1ms周期 */
+        handle->angle_offset += 2.0f * M_PI;
     }
-
-    /* 读取旋转后的角度 */
-    sum = 0;
-    for (int i = 0; i < 100; i++)
-    {
-        sum += as5047_get_angle_rad();
-        HAL_Delay(1);
-    }
-    angle_end = sum / 100.0f;
-
-    /* 计算角度变化，判断方向 */
-    float angle_diff = angle_end - angle_start;
-
-    /* 处理角度翻转 */
-    if (angle_diff > M_PI)
-        angle_diff -= 2.0f * M_PI;
-    else if (angle_diff < -M_PI)
-        angle_diff += 2.0f * M_PI;
-
-    /* 判断方向：开环正转时，如果实际角度减小，说明方向相反 */
-    if (angle_diff <= 0)
-    {
-        motor_dir = -1;
-        printf("Motor direction: REVERSE\n");
-    }
-    else
-    {
-        motor_dir = 1;
-        printf("Motor direction: FORWARD\n");
-    }
-
-    /* 再次将目标角度设为0，D轴电压1.0V，精确对齐 */
-    v_dq.d = 1.0f;
-    v_dq.q = 0.0f;
-    v_alphabeta = ipark_transform(v_dq, 0.0f);
-    duty = svpwm_update(v_alphabeta);
-    tim1_set_pwm_duty(duty.a, duty.b, duty.c);
-
-    HAL_Delay(500);
-
-    /* 再次读取零点 */
-    sum = 0;
-    for (int i = 0; i < 100; i++)
-    {
-        sum += as5047_get_angle_rad();
-        HAL_Delay(1);
-    }
-    pos_init = sum / 100.0f;  /* 更新零点 */
-
-    printf("Final zero point: %.4f rad\n", pos_init);
-
-    /* 关断PWM（50%占空比，安全状态） */
+    
+    /* 关闭PWM输出 */
     tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
-
-    /* 保存对齐结果 */
-    handle->angle_offset = pos_init;
-    handle->motor_dir = motor_dir;
-
-    printf("Motor Alignment Complete! Offset=%.4f rad, Dir=%d\n", 
-           handle->angle_offset, handle->motor_dir);
 }
 
 /* 开环运行 */

@@ -78,7 +78,6 @@ typedef struct
 
     /* 编码器零点偏移 */
     float angle_offset; /* 编码器零点偏移角 (rad)，用于计算实际电角度 */
-    int8_t motor_dir;   /* 电机方向：1=正向，-1=反向 */
 } foc_t;
 
 #endif /* __TYPE_CONFIG_H__ */
