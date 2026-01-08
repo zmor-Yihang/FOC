@@ -26,6 +26,11 @@ static volatile ctrl_mode_t ctrl_mode = CTRL_MODE_IDLE;
 /* 实际 dq 电流反馈 (打印用) */
 static volatile dq_t i_dq_feedback = {0};
 
+/* 速度斜坡控制 */
+static float speed_ramp_target = 0.0f;    /* 最终目标转速 */
+static float speed_ramp_current = 0.0f;   /* 当前斜坡转速 */
+#define SPEED_RAMP_STEP 1.0f              /* 斜坡增量 (rpm/周期, 10kHz下为10000rpm/s) */
+
 /* FOC 主控制adc注入中断回调 - 10kHz */
 static void motor_ctrl_callback(void)
 {
@@ -74,6 +79,21 @@ static void motor_ctrl_callback(void)
     }
     else if (ctrl_mode == CTRL_MODE_SPEED)
     {
+        /* 斜坡加速 */
+        if (speed_ramp_current < speed_ramp_target)
+        {
+            speed_ramp_current += SPEED_RAMP_STEP;
+            if (speed_ramp_current > speed_ramp_target)
+                speed_ramp_current = speed_ramp_target;
+        }
+        else if (speed_ramp_current > speed_ramp_target)
+        {
+            speed_ramp_current -= SPEED_RAMP_STEP;
+            if (speed_ramp_current < speed_ramp_target)
+                speed_ramp_current = speed_ramp_target;
+        }
+        
+        foc_handle.target_speed = speed_ramp_current;
         foc_speed_closed_loop(&foc_handle, i_dq, angle_el, as5047_get_speed_rpm());
     }
 }
@@ -96,12 +116,12 @@ void motor_ctrl_bsp_init(void)
 
 void motor_ctrl_init(void)
 {
-    /* 电流环 PID: Kp=0.017, Ki=0.002826, 输出限幅 ±U_DC/2 */
-    pid_init(&pid_id, 0.017f, 0.002826f, 0.0f, U_DC / 2.0f, -U_DC / 2.0f);
-    pid_init(&pid_iq, 0.017f, 0.002826f, 0.0f, U_DC / 2.0f, -U_DC / 2.0f);
+    /* 电流环 PI: Kp=0.017, Ki=0.002826, 输出限幅 ±U_DC/2 */
+    pid_init(&pid_id, 0.017f, 0.002826f, -U_DC / 2.0f, U_DC / 2.0f);
+    pid_init(&pid_iq, 0.017f, 0.002826f, -U_DC / 2.0f, U_DC / 2.0f);
 
-    /* 速度环 PID: Kp=0.01, Ki=0.001, 输出限幅 ±2A */
-    pid_init(&pid_speed, 0.05f, 0.00002f, 0.0f, 2.0f, -2.0f);
+    /* 速度环 PI: Kp=0.05, Ki=0.00002, 输出限幅 ±2A */
+    pid_init(&pid_speed, 0.05f, 0.00002f, -2.0f, 2.0f);
 
     /* 初始化 FOC 控制句柄 */
     foc_init(&foc_handle, &pid_id, &pid_iq, &pid_speed);
@@ -135,7 +155,8 @@ void motor_ctrl_switch_mode(void)
 
     case CTRL_MODE_CURRENT:
         ctrl_mode = CTRL_MODE_SPEED;
-        foc_handle.target_speed = 300.0f;
+        speed_ramp_target = 300.0f;
+        speed_ramp_current = 0.0f;  /* 从0开始斜坡 */
         printf("Mode: SPEED, 300RPM\n");
         break;
 
@@ -149,6 +170,8 @@ void motor_ctrl_switch_mode(void)
 void motor_ctrl_stop(void)
 {
     ctrl_mode = CTRL_MODE_IDLE;
+    speed_ramp_target = 0.0f;
+    speed_ramp_current = 0.0f;
     foc_open_loop_stop();
     foc_closed_loop_stop(&foc_handle);
 }

@@ -94,39 +94,21 @@ static float simulate_motor_mechanics(float iq, float load_torque, float dt)
  */
 void test_foc_triple_loop(void)
 {
-    printf("\r\n========== FOC三闭环PID测试 ==========\r\n");
+    printf("\r\n========== FOC三闭环PI测试 ==========\r\n");
     
-    /* 初始化三个PID控制器 */
-    pid_controller_t pid_speed; /* 速度环PID */
-    pid_controller_t pid_iq;    /* Q轴电流环PID */
-    pid_controller_t pid_id;    /* D轴电流环PID */
+    /* 初始化三个PI控制器 */
+    pid_controller_t pid_speed; /* 速度环PI */
+    pid_controller_t pid_iq;    /* Q轴电流环PI */
+    pid_controller_t pid_id;    /* D轴电流环PI */
     
     /* 速度环参数（外环，较慢） */
-    pid_init(&pid_speed, 
-             0.5f,   /* Kp */
-             0.1f,   /* Ki */
-             0.0f,   /* Kd */
-             10.0f,  /* 输出上限(目标Iq) */
-             -10.0f  /* 输出下限 */
-    );
+    pid_init(&pid_speed, 0.5f, 0.1f, -10.0f, 10.0f);
     
     /* Q轴电流环参数（内环，较快） */
-    pid_init(&pid_iq,
-             2.0f,   /* Kp */
-             50.0f,  /* Ki */
-             0.0f,   /* Kd */
-             12.0f,  /* 输出上限(Vq电压) */
-             -12.0f  /* 输出下限 */
-    );
+    pid_init(&pid_iq, 2.0f, 50.0f, -12.0f, 12.0f);
     
     /* D轴电流环参数（通常Id=0） */
-    pid_init(&pid_id,
-             2.0f,   /* Kp */
-             50.0f,  /* Ki */
-             0.0f,   /* Kd */
-             12.0f,  /* 输出上限(Vd电压) */
-             -12.0f  /* 输出下限 */
-    );
+    pid_init(&pid_id, 2.0f, 50.0f, -12.0f, 12.0f);
     
     /* 设置目标 */
     float target_speed = 100.0f; /* 目标转速 100 rad/s */
@@ -198,18 +180,12 @@ void test_foc_triple_loop(void)
  */
 void test_single_pid(void)
 {
-    printf("\r\n========== 单个PID控制器测试 ==========\r\n");
+    printf("\r\n========== 单个PI控制器测试 ==========\r\n");
     
     pid_controller_t pid;
     
-    /* 初始化PID参数 */
-    pid_init(&pid, 
-             1.0f,   /* Kp */
-             0.5f,   /* Ki */
-             0.1f,   /* Kd */
-             100.0f, /* out_max */
-             -100.0f /* out_min */
-    );
+    /* 初始化PI参数 */
+    pid_init(&pid, 1.0f, 0.5f, -100.0f, 100.0f);
     
     float setpoint = 50.0f;  /* 目标值 */
     float feedback = 0.0f;   /* 当前值（被控对象输出） */
@@ -271,35 +247,17 @@ void test_foc_triple_loop_vofa(UART_HandleTypeDef *huart)
 {
     /* 初始化三个PID控制器 */
     pid_controller_t pid_speed; /* 速度环PID */
-    pid_controller_t pid_iq;    /* Q轴电流环PID */
-    pid_controller_t pid_id;    /* D轴电流环PID */
+    pid_controller_t pid_iq;    /* Q轴电流环PI */
+    pid_controller_t pid_id;    /* D轴电流环PI */
     
     /* 速度环参数（外环，较慢） */
-    pid_init(&pid_speed, 
-             0.5f,   /* Kp */
-             0.1f,   /* Ki */
-             0.0f,   /* Kd */
-             10.0f,  /* 输出上限(目标Iq) */
-             -10.0f  /* 输出下限 */
-    );
+    pid_init(&pid_speed, 0.5f, 0.1f, -10.0f, 10.0f);
     
     /* Q轴电流环参数（内环，较快） */
-    pid_init(&pid_iq,
-             2.0f,   /* Kp */
-             50.0f,  /* Ki */
-             0.0f,   /* Kd */
-             12.0f,  /* 输出上限(Vq电压) */
-             -12.0f  /* 输出下限 */
-    );
+    pid_init(&pid_iq, 2.0f, 50.0f, -12.0f, 12.0f);
     
     /* D轴电流环参数（通常Id=0） */
-    pid_init(&pid_id,
-             2.0f,   /* Kp */
-             50.0f,  /* Ki */
-             0.0f,   /* Kd */
-             12.0f,  /* 输出上限(Vd电压) */
-             -12.0f  /* 输出下限 */
-    );
+    pid_init(&pid_id, 2.0f, 50.0f, -12.0f, 12.0f);
     
     /* 设置目标 */
     float target_speed = 100.0f; /* 目标转速 100 rad/s */

@@ -97,21 +97,7 @@ void tim1_init(void)
 
 void tim1_set_pwm_duty(float duty1, float duty2, float duty3)
 {
-    /* 边界检查 */
-    if (duty1 < 0.0f)
-        duty1 = 0.0f;
-    if (duty1 > 1.0f)
-        duty1 = 1.0f;
-    if (duty2 < 0.0f)
-        duty2 = 0.0f;
-    if (duty2 > 1.0f)
-        duty2 = 1.0f;
-    if (duty3 < 0.0f)
-        duty3 = 0.0f;
-    if (duty3 > 1.0f)
-        duty3 = 1.0f;
-
-    /* 计算比较值：compare = duty * TIM1_PERIOD */
+    /* 计算比较值：compare = duty * TIM1_PERIOD * 2 */
     uint32_t compare1 = (uint32_t)(duty1 * TIM1_PERIOD * 2);
     uint32_t compare2 = (uint32_t)(duty2 * TIM1_PERIOD * 2);
     uint32_t compare3 = (uint32_t)(duty3 * TIM1_PERIOD * 2);
@@ -120,21 +106,6 @@ void tim1_set_pwm_duty(float duty1, float duty2, float duty3)
     __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, compare1);
     __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, compare2);
     __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, compare3);
-}
-
-float tim1_get_pwm_duty(uint32_t channel)
-{
-    switch (channel)
-    {
-    case TIM_CHANNEL_1:
-        return (float)__HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_1) / TIM1_PERIOD;
-    case TIM_CHANNEL_2:
-        return (float)__HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_2) / TIM1_PERIOD;
-    case TIM_CHANNEL_3:
-        return (float)__HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_3) / TIM1_PERIOD;
-    default:
-        return 0.0f;
-    }
 }
 
 /*-----------------------------------------TIM3-----------------------------------------------------*/
