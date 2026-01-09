@@ -1,5 +1,4 @@
 #include "foc.h"
-#include "utils/math_utils.h"
 
 void foc_init(foc_t* handle, pid_controller_t *pid_id, pid_controller_t *pid_iq, pid_controller_t *pid_speed)
 {
@@ -44,7 +43,7 @@ void foc_alignment(foc_t *handle)
     float mech_angle = as5047_get_angle_rad();
     
     /* 计算电角度偏移 = 机械角度 × 极对数 */
-    handle->angle_offset = normalize_angle(mech_angle * MOTOR_POLE_PAIR);
+    handle->angle_offset = mech_angle * MOTOR_POLE_PAIR;
     
     /* 关闭PWM输出 */
     tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
@@ -66,7 +65,7 @@ void foc_open_loop_run(foc_t *handle, float speed_rpm, float voltage_q)
                         (speed_rpm / 60.0f) * 0.0001f;
     
     /* 累加电角度 */
-    handle->open_loop_angle_el = normalize_angle(handle->open_loop_angle_el + delta_angle);
+    handle->open_loop_angle_el += delta_angle;
     
     /* 输出电压矢量：d轴为0，q轴为设定电压 */
     dq_t u_dq = {.d = 0.0f, .q = voltage_q};

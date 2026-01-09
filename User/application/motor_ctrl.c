@@ -1,5 +1,4 @@
 #include "motor_ctrl.h"
-#include "utils/math_utils.h"
 
 /* FOC 控制句柄 */
 static foc_t foc_handle;
@@ -33,7 +32,7 @@ static void motor_ctrl_callback(void)
     /* 开环模式单独处理 */
     if (ctrl_mode == CTRL_MODE_OPEN_LOOP)
     {
-        foc_open_loop_run(&foc_handle, 100.0f, 1.0f);
+        foc_open_loop_run(&foc_handle, 200.0f, 1.0f);
         return;
     }
 
@@ -43,7 +42,7 @@ static void motor_ctrl_callback(void)
 
     /* 计算电角度 */
     float mech_angle = as5047_get_angle_rad();
-    float angle_el = normalize_angle(mech_angle * MOTOR_POLE_PAIR - foc_handle.angle_offset);
+    float angle_el = mech_angle * MOTOR_POLE_PAIR - foc_handle.angle_offset;
 
     /* Clark 变换: abc -> αβ */
     abc_t i_abc = {.a = adc_values.ia, .b = adc_values.ib, .c = adc_values.ic};
@@ -62,7 +61,7 @@ static void motor_ctrl_callback(void)
     }
     else if (ctrl_mode == CTRL_MODE_SPEED)
     {
-        /* 斜坡加速 */
+        /* 斜坡加速/减速 */
         if (speed_ramp_current < speed_ramp_target)
         {
             speed_ramp_current += SPEED_RAMP_STEP;
@@ -78,6 +77,15 @@ static void motor_ctrl_callback(void)
 
         foc_handle.target_speed = speed_ramp_current;
         foc_speed_closed_loop_run(&foc_handle, i_dq, angle_el, as5047_get_speed_rpm());
+
+        /* 减速完成后自动进入 IDLE */
+        if (speed_ramp_target == 0.0f && fabsf(as5047_get_speed_rpm()) < 10.0f)
+        {
+            foc_handle.open_loop_angle_el = 0.0f;
+            tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
+            foc_closed_loop_stop(&foc_handle);
+            ctrl_mode = CTRL_MODE_IDLE;
+        }
     }
 }
 
@@ -99,7 +107,7 @@ static void enter_open_loop(void)
 
 static void enter_current(void)
 {
-    tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
+    /* 复位PID并设置目标电流 */
     pid_reset(&pid_id);
     pid_reset(&pid_iq);
     foc_handle.target_id = 0.0f;
@@ -137,11 +145,11 @@ void motor_ctrl_bsp_init(void)
 void motor_ctrl_init(void)
 {
     /* 电流环 PI: Kp=0.017, Ki=0.002826, 输出限幅 ±U_DC/2 */
-    pid_init(&pid_id, 0.017f, 0.0002826f, -U_DC / 4.0f, U_DC / 4.0f);
-    pid_init(&pid_iq, 0.017f, 0.0002826f, -U_DC / 4.0f, U_DC / 4.0f);
+    pid_init(&pid_id, 0.017f, 0.002826f, -U_DC / 4.0f, U_DC / 4.0f);
+    pid_init(&pid_iq, 0.017f, 0.002826f, -U_DC / 4.0f, U_DC / 4.0f);
 
-    /* 速度环 PI: Kp=0.01, Ki=0.00002, 输出限幅 ±1A */
-    pid_init(&pid_speed, 0.01f, 0.00002f, -1.0f, 1.0f);
+    /* 速度环 PI: Kp=0.05, Ki=0.00002, 输出限幅 ±2A */
+    pid_init(&pid_speed, 0.05f, 0.00002f, -2.0f, 2.0f);
 
     /* 初始化 FOC 控制句柄 */
     foc_init(&foc_handle, &pid_id, &pid_iq, &pid_speed);
@@ -157,25 +165,21 @@ void motor_ctrl_init(void)
 
 void motor_ctrl_switch_mode(void)
 {
-    __disable_irq();
 
     switch (ctrl_mode)
     {
     case CTRL_MODE_IDLE:
         enter_open_loop();
-        __enable_irq();
         printf("Mode: OPEN LOOP, 100RPM\n");
         break;
 
     case CTRL_MODE_OPEN_LOOP:
         enter_current();
-        __enable_irq();
         printf("Mode: CURRENT, Iq=0.5A\n");
         break;
 
     case CTRL_MODE_CURRENT:
         enter_speed();
-        __enable_irq();
         printf("Mode: SPEED, 3000RPM (bumpless)\n");
         break;
 
@@ -183,19 +187,13 @@ void motor_ctrl_switch_mode(void)
         if (speed_ramp_target != 0.0f)
         {
             speed_ramp_target = 0.0f;
-            __enable_irq();
-            printf("Mode: DECELERATING...\n");
-        }
-        else if (fabsf(as5047_get_speed_rpm()) < 10.0f)
-        {
-            enter_idle();
-            __enable_irq();
-            printf("Mode: IDLE\n");
+            printf("Mode: DECELERATING... (auto stop)\n");
         }
         else
         {
-            __enable_irq();
-            printf("Still decelerating, RPM=%.1f\n", as5047_get_speed_rpm());
+            /* 减速中再次按键，直接强制停止 */
+            enter_idle();
+            printf("Mode: IDLE (forced)\n");
         }
         break;
     }
@@ -203,8 +201,5 @@ void motor_ctrl_switch_mode(void)
 
 void motor_ctrl_print_status(void)
 {
-    if (ctrl_mode == CTRL_MODE_IDLE)
-        return;
-
     printf_period(500, "RPM, Id, Iq: %.1f, %.2f, %.2f\n", as5047_get_speed_rpm_lpf(), i_dq_feedback.d, i_dq_feedback.q);
 }
