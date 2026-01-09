@@ -36,7 +36,7 @@ tim1_set_pwm_duty(0, 0, 0);
 ### 3. 竞态条件
 
 ```c
-speed_loop_enable = 0;      // ← ISR可能正在执行foc_speed_closed_loop
+speed_loop_enable = 0;      // ← ISR可能正在执行foc_speed_closed_loop_run
 tim1_set_pwm_duty(0, 0, 0); // ← ISR可能刚写入新占空比
 ```
 

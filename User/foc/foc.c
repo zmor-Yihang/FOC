@@ -1,4 +1,5 @@
 #include "foc.h"
+#include "utils/math_utils.h"
 
 void foc_init(foc_t* handle, pid_controller_t *pid_id, pid_controller_t *pid_iq, pid_controller_t *pid_speed)
 {
@@ -23,6 +24,7 @@ void foc_init(foc_t* handle, pid_controller_t *pid_id, pid_controller_t *pid_iq,
     handle->duty_cycle.c = 0.0f;
 
     handle->angle_offset = 0.0f;
+    handle->open_loop_angle_el = 0.0f;
 }
 
 void foc_alignment(foc_t *handle)
@@ -31,7 +33,9 @@ void foc_alignment(foc_t *handle)
     dq_t u_dq = {.d = 1.0f, .q = 0.0f};
     
     /* 开环输出，固定电角度为0 */
-    foc_open_loop(u_dq, 0);
+    alphabeta_t alpha_beta = ipark_transform(u_dq, 0);
+    abc_t duty_abc = svpwm_update(alpha_beta);
+    tim1_set_pwm_duty(duty_abc.a, duty_abc.b, duty_abc.c);
     
     /* 等待转子稳定 */
     HAL_Delay(100);
@@ -40,79 +44,37 @@ void foc_alignment(foc_t *handle)
     float mech_angle = as5047_get_angle_rad();
     
     /* 计算电角度偏移 = 机械角度 × 极对数 */
-    handle->angle_offset = mech_angle * MOTOR_POLE_PAIR;
-    
-    /* 归一化到 [0, 2π) */
-    while (handle->angle_offset >= 2.0f * M_PI)
-    {
-        handle->angle_offset -= 2.0f * M_PI;
-    }
-    while (handle->angle_offset < 0.0f)
-    {
-        handle->angle_offset += 2.0f * M_PI;
-    }
+    handle->angle_offset = normalize_angle(mech_angle * MOTOR_POLE_PAIR);
     
     /* 关闭PWM输出 */
     tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
 }
 
-/* 开环运行 - 基础版本 */
-void foc_open_loop(dq_t u_dq, float angle_rad_el)
-{
-    alphabeta_t alpha_beta = ipark_transform(u_dq, angle_rad_el);
-    abc_t duty_abc = svpwm_update(alpha_beta);
-    tim1_set_pwm_duty(duty_abc.a, duty_abc.b, duty_abc.c);
-}
-
-/* 开环速度运行状态 */
-static struct {
-    float angle_el;         /* 当前电角度 (rad) */
-    float target_speed_rpm; /* 目标转速 (RPM) */
-    float voltage_q;        /* Q轴电压 (V) */
-} open_loop_state = {0.0f, 0.0f, 0.0f};
-
-/**
- * @brief 设置开环运行参数
- * @param speed_rpm 目标转速 (RPM)，正值正转，负值反转
- * @param voltage_q Q轴电压幅值 (V)
- */
-void foc_open_loop_set(float speed_rpm, float voltage_q)
-{
-    open_loop_state.target_speed_rpm = speed_rpm;
-    open_loop_state.voltage_q = voltage_q;
-}
-
 /**
  * @brief 开环速度运行 - 在定时中断中调用 (10kHz)
- * @note  通过递增电角度实现开环转速控制
+ * @param handle    FOC 控制句柄
+ * @param speed_rpm 目标转速 (RPM)，是旋转磁场速度，不能太大，否则电机会失步
+ * @param voltage_q Q轴电压幅值 (V)
  */
-void foc_open_loop_run(void)
+void foc_open_loop_run(foc_t *handle, float speed_rpm, float voltage_q)
 {
     /* 计算每次中断的角度增量
      * delta_angle = 2π × 极对数 × (转速RPM / 60) × 采样周期
      * 采样周期 = 1/10000 = 0.0001s
      */
     float delta_angle = 2.0f * M_PI * MOTOR_POLE_PAIR * 
-                        (open_loop_state.target_speed_rpm / 60.0f) * 0.0001f;
+                        (speed_rpm / 60.0f) * 0.0001f;
     
     /* 累加电角度 */
-    open_loop_state.angle_el += delta_angle;
-    
-    /* 归一化到 [0, 2π) */
-    if (open_loop_state.angle_el >= 2.0f * M_PI)
-    {
-        open_loop_state.angle_el -= 2.0f * M_PI;
-    }
-    else if (open_loop_state.angle_el < 0.0f)
-    {
-        open_loop_state.angle_el += 2.0f * M_PI;
-    }
+    handle->open_loop_angle_el = normalize_angle(handle->open_loop_angle_el + delta_angle);
     
     /* 输出电压矢量：d轴为0，q轴为设定电压 */
-    dq_t u_dq = {.d = 0.0f, .q = open_loop_state.voltage_q};
+    dq_t u_dq = {.d = 0.0f, .q = voltage_q};
     
     /* 执行开环输出 */
-    foc_open_loop(u_dq, open_loop_state.angle_el);
+    alphabeta_t alpha_beta = ipark_transform(u_dq, handle->open_loop_angle_el);
+    abc_t duty_abc = svpwm_update(alpha_beta);
+    tim1_set_pwm_duty(duty_abc.a, duty_abc.b, duty_abc.c);
 }
 
 /**
@@ -121,7 +83,7 @@ void foc_open_loop_run(void)
  * @param i_dq      dq 轴电流反馈
  * @param angle_el  电角度 (rad)
  */
-void foc_current_closed_loop(foc_t *handle, dq_t i_dq, float angle_el)
+void foc_current_closed_loop_run(foc_t *handle, dq_t i_dq, float angle_el)
 {
     /* 电流环 PID */
     handle->v_d_out = pid_calculate(handle->pid_id, handle->target_id, i_dq.d);
@@ -142,7 +104,7 @@ void foc_current_closed_loop(foc_t *handle, dq_t i_dq, float angle_el)
  * @param angle_el  电角度 (rad)
  * @param speed_rpm 速度反馈 (RPM)
  */
-void foc_speed_closed_loop(foc_t *handle, dq_t i_dq, float angle_el, float speed_rpm)
+void foc_speed_closed_loop_run(foc_t *handle, dq_t i_dq, float angle_el, float speed_rpm)
 {
     /* 速度环 → 输出目标 Iq */
     handle->target_iq = pid_calculate(handle->pid_speed, handle->target_speed, speed_rpm);
@@ -151,18 +113,7 @@ void foc_speed_closed_loop(foc_t *handle, dq_t i_dq, float angle_el, float speed
     handle->target_id = 0.0f;
 
     /* 复用电流闭环 */
-    foc_current_closed_loop(handle, i_dq, angle_el);
-}
-
-/**
- * @brief 停止开环运行
- */
-void foc_open_loop_stop(void)
-{
-    open_loop_state.target_speed_rpm = 0.0f;
-    open_loop_state.voltage_q = 0.0f;
-    open_loop_state.angle_el = 0.0f;
-    tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
+    foc_current_closed_loop_run(handle, i_dq, angle_el);
 }
 
 /**

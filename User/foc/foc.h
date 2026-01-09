@@ -10,8 +10,8 @@
 #include "bsp/adc.h"
 
 /* 电机参数 */
-#define MOTOR_POLE_PAIR 7   /* 电机极对数 */
-#define U_DC 12.0f          /* 直流母线电压 (V) */
+#define MOTOR_POLE_PAIR 7 /* 电机极对数 */
+#define U_DC 12.0f        /* 直流母线电压 (V) */
 
 /* FOC 核心控制对象 */
 typedef struct
@@ -25,9 +25,9 @@ typedef struct
     float target_iq;
 
     /* 电压控制量 */
-    float v_d_out;  /* D轴电压输出 */
-    float v_q_out;  /* Q轴电压输出 */
-    float i_q_out;  /* Q轴电流输出 (速度环) */
+    float v_d_out; /* D轴电压输出 */
+    float v_q_out; /* Q轴电压输出 */
+    float i_q_out; /* Q轴电流输出 (速度环) */
 
     /* PID控制器 */
     pid_controller_t *pid_id;
@@ -39,21 +39,21 @@ typedef struct
 
     /* 编码器零点偏移 */
     float angle_offset;
+
+    /* 开环运行角度 */
+    float open_loop_angle_el;
 } foc_t;
 
 /* FOC 控制函数 */
-void foc_init(foc_t* handle, pid_controller_t *pid_id, pid_controller_t *pid_iq, pid_controller_t *pid_speed);
+void foc_init(foc_t *handle, pid_controller_t *pid_id, pid_controller_t *pid_iq, pid_controller_t *pid_speed);
 void foc_alignment(foc_t *handle);
 
 /* 开环控制 */
-void foc_open_loop(dq_t u_dq, float angle_rad_el);
-void foc_open_loop_set(float speed_rpm, float voltage_q);
-void foc_open_loop_run(void);
-void foc_open_loop_stop(void);
+void foc_open_loop_run(foc_t *handle, float speed_rpm, float voltage_q);
 
 /* 闭环控制 */
-void foc_current_closed_loop(foc_t *handle, dq_t i_dq, float angle_el);
-void foc_speed_closed_loop(foc_t *handle, dq_t i_dq, float angle_el, float speed_rpm);
+void foc_current_closed_loop_run(foc_t *handle, dq_t i_dq, float angle_el);
+void foc_speed_closed_loop_run(foc_t *handle, dq_t i_dq, float angle_el, float speed_rpm);
 void foc_closed_loop_stop(foc_t *handle);
 
 #endif /* __FOC_H__ */

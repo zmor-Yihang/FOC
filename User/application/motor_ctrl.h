@@ -34,9 +34,6 @@ void motor_ctrl_bsp_init(void);
 /* 切换到下一个控制模式 */
 void motor_ctrl_switch_mode(void);
 
-/* 停止电机 */
-void motor_ctrl_stop(void);
-
 /* 打印状态信息 */
 void motor_ctrl_print_status(void);
 

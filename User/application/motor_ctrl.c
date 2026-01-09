@@ -1,4 +1,5 @@
 #include "motor_ctrl.h"
+#include "utils/math_utils.h"
 
 /* FOC 控制句柄 */
 static foc_t foc_handle;
@@ -15,9 +16,9 @@ static volatile ctrl_mode_t ctrl_mode = CTRL_MODE_IDLE;
 static volatile dq_t i_dq_feedback = {0};
 
 /* 速度斜坡控制 */
-static float speed_ramp_target = 0.0f;    /* 最终目标转速 */
-static float speed_ramp_current = 0.0f;   /* 当前斜坡转速 */
-#define SPEED_RAMP_STEP 1.0f              /* 斜坡增量 (rpm/周期, 10kHz下为10000rpm/s) */
+static float speed_ramp_target = 0.0f;  /* 最终目标转速 */
+static float speed_ramp_current = 0.0f; /* 当前斜坡转速 */
+#define SPEED_RAMP_STEP 1.0f            /* 斜坡增量 (rpm/周期, 10kHz下为10000rpm/s) */
 
 /* FOC 主控制adc注入中断回调 - 10kHz */
 static void motor_ctrl_callback(void)
@@ -28,11 +29,11 @@ static void motor_ctrl_callback(void)
     /* 空闲模式不执行 */
     if (ctrl_mode == CTRL_MODE_IDLE)
         return;
-        
+
     /* 开环模式单独处理 */
     if (ctrl_mode == CTRL_MODE_OPEN_LOOP)
     {
-        foc_open_loop_run();
+        foc_open_loop_run(&foc_handle, 100.0f, 1.0f);
         return;
     }
 
@@ -42,13 +43,7 @@ static void motor_ctrl_callback(void)
 
     /* 计算电角度 */
     float mech_angle = as5047_get_angle_rad();
-    float angle_el = mech_angle * MOTOR_POLE_PAIR - foc_handle.angle_offset;
-
-    /* 归一化到 [0, 2π) */
-    while (angle_el >= 2.0f * M_PI)
-        angle_el -= 2.0f * M_PI;
-    while (angle_el < 0.0f)
-        angle_el += 2.0f * M_PI;
+    float angle_el = normalize_angle(mech_angle * MOTOR_POLE_PAIR - foc_handle.angle_offset);
 
     /* Clark 变换: abc -> αβ */
     abc_t i_abc = {.a = adc_values.ia, .b = adc_values.ib, .c = adc_values.ic};
@@ -63,7 +58,7 @@ static void motor_ctrl_callback(void)
     /* 执行闭环控制 */
     if (ctrl_mode == CTRL_MODE_CURRENT)
     {
-        foc_current_closed_loop(&foc_handle, i_dq, angle_el);
+        foc_current_closed_loop_run(&foc_handle, i_dq, angle_el);
     }
     else if (ctrl_mode == CTRL_MODE_SPEED)
     {
@@ -80,10 +75,47 @@ static void motor_ctrl_callback(void)
             if (speed_ramp_current < speed_ramp_target)
                 speed_ramp_current = speed_ramp_target;
         }
-        
+
         foc_handle.target_speed = speed_ramp_current;
-        foc_speed_closed_loop(&foc_handle, i_dq, angle_el, as5047_get_speed_rpm());
+        foc_speed_closed_loop_run(&foc_handle, i_dq, angle_el, as5047_get_speed_rpm());
     }
+}
+
+/* 状态进入函数 - 必须在关中断状态下调用 */
+static void enter_idle(void)
+{
+    foc_handle.open_loop_angle_el = 0.0f;
+    tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
+    foc_closed_loop_stop(&foc_handle);
+    ctrl_mode = CTRL_MODE_IDLE;
+}
+
+static void enter_open_loop(void)
+{
+    foc_closed_loop_stop(&foc_handle);
+    foc_handle.open_loop_angle_el = 0.0f;
+    ctrl_mode = CTRL_MODE_OPEN_LOOP;
+}
+
+static void enter_current(void)
+{
+    tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
+    pid_reset(&pid_id);
+    pid_reset(&pid_iq);
+    foc_handle.target_id = 0.0f;
+    foc_handle.target_iq = 0.5f;
+    ctrl_mode = CTRL_MODE_CURRENT;
+}
+
+static void enter_speed(void)
+{
+    /* 无扰切换：保持电流环状态连续，不复位 pid_id/pid_iq */
+    pid_speed.integral = foc_handle.target_iq;
+    pid_speed.out = foc_handle.target_iq;
+    pid_speed.error = 0.0f;
+    speed_ramp_current = as5047_get_speed_rpm();
+    speed_ramp_target = 3000.0f;
+    ctrl_mode = CTRL_MODE_SPEED;
 }
 
 void motor_ctrl_bsp_init(void)
@@ -125,70 +157,48 @@ void motor_ctrl_init(void)
 
 void motor_ctrl_switch_mode(void)
 {
-    /* 关中断保护，防止与 ADC 中断回调竞态 */
     __disable_irq();
-    
+
     switch (ctrl_mode)
     {
     case CTRL_MODE_IDLE:
-        /* 复位 PID，清除残留积分项 */
-        foc_closed_loop_stop(&foc_handle);
-        foc_open_loop_set(100.0f, 1.0f); /* 默认 100RPM, 1V */
-        ctrl_mode = CTRL_MODE_OPEN_LOOP;
+        enter_open_loop();
         __enable_irq();
         printf("Mode: OPEN LOOP, 100RPM\n");
         break;
 
     case CTRL_MODE_OPEN_LOOP:
-        foc_open_loop_stop();
-        /* 复位电流环 PID，清除积分项 */
-        pid_reset(&pid_id);
-        pid_reset(&pid_iq);
-        foc_handle.target_id = 0.0f;
-        foc_handle.target_iq = 0.5f;
-        ctrl_mode = CTRL_MODE_CURRENT;
+        enter_current();
         __enable_irq();
         printf("Mode: CURRENT, Iq=0.5A\n");
         break;
 
     case CTRL_MODE_CURRENT:
-        /* 无扰切换：保持电流环状态连续，不复位！ */
-        /* pid_id 和 pid_iq 不能复位，否则电压输出断层 */
-        
-        /* 速度环积分项预设为当前 Iq 目标，实现无扰切换 */
-        pid_speed.integral = foc_handle.target_iq;
-        pid_speed.out = foc_handle.target_iq;
-        pid_speed.error = 0.0f;
-        
-        /* 斜坡从当前实际转速开始，避免速度误差突变 */
-        speed_ramp_current = as5047_get_speed_rpm();
-        speed_ramp_target = 3000.0f;
-        ctrl_mode = CTRL_MODE_SPEED;
+        enter_speed();
         __enable_irq();
-        printf("Mode: SPEED, 300RPM (bumpless)\n");
+        printf("Mode: SPEED, 3000RPM (bumpless)\n");
         break;
 
     case CTRL_MODE_SPEED:
-        ctrl_mode = CTRL_MODE_IDLE;  /* 先切换模式，阻止中断继续控制 */
-        speed_ramp_target = 0.0f;
-        speed_ramp_current = 0.0f;
-        foc_open_loop_stop();
-        foc_closed_loop_stop(&foc_handle);
-        __enable_irq();
-        printf("Mode: IDLE\n");
+        if (speed_ramp_target != 0.0f)
+        {
+            speed_ramp_target = 0.0f;
+            __enable_irq();
+            printf("Mode: DECELERATING...\n");
+        }
+        else if (fabsf(as5047_get_speed_rpm()) < 10.0f)
+        {
+            enter_idle();
+            __enable_irq();
+            printf("Mode: IDLE\n");
+        }
+        else
+        {
+            __enable_irq();
+            printf("Still decelerating, RPM=%.1f\n", as5047_get_speed_rpm());
+        }
         break;
     }
-}
-
-void motor_ctrl_stop(void)
-{
-    __disable_irq();
-    ctrl_mode = CTRL_MODE_IDLE;
-    speed_ramp_target = 0.0f;
-    speed_ramp_current = 0.0f;
-    foc_open_loop_stop();
-    foc_closed_loop_stop(&foc_handle);
-    __enable_irq();
 }
 
 void motor_ctrl_print_status(void)
