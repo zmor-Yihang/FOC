@@ -1,40 +1,41 @@
 #include "svpwm.h"
 
 // /**
-//  * @brief  SVPWM调制函数 (中心对齐PWM，带零序分量注入)
-//  * @param  u_abc - 输入的三相调制电压 (绝对电压值, 单位: V)
-//  * @retval  duty - 输出的三相占空比 (范围 0.0 ~ 1.0)
+//  * @brief  SVPWM调制函数 (min-max零序注入法)
+//  * @param  u_alphabeta - αβ轴电压 (V)，为了接口兼容性
+//  * @retval duty - 输出的三相占空比 (范围 0.0 ~ 0.5)
 //  */
-// abc_t svpwm_update(abc_t u_abc)
+// abc_t svpwm_update(alphabeta_t u_alphabeta)
 // {
 //     abc_t duty;
 //     float u_max, u_min, u_zero;
 
+//     /* 反Clark变换: αβ -> abc */
+//     abc_t u_abc = iclark_transform(u_alphabeta);
+
+//     /* 归一化到 [-1, 1] */
 //     u_abc.a /= (U_DC * 0.5f);
 //     u_abc.b /= (U_DC * 0.5f);
 //     u_abc.c /= (U_DC * 0.5f);
 
+//     /* 找最大最小值 */
 //     u_max = u_abc.a;
-//     if (u_abc.b > u_max)
-//         u_max = u_abc.b;
-//     if (u_abc.c > u_max)
-//         u_max = u_abc.c;
+//     if (u_abc.b > u_max) u_max = u_abc.b;
+//     if (u_abc.c > u_max) u_max = u_abc.c;
 
 //     u_min = u_abc.a;
-//     if (u_abc.b < u_min)
-//         u_min = u_abc.b;
-//     if (u_abc.c < u_min)
-//         u_min = u_abc.c;
+//     if (u_abc.b < u_min) u_min = u_abc.b;
+//     if (u_abc.c < u_min) u_min = u_abc.c;
 
 //     /* 计算零序分量 (min-max方法) */
 //     u_zero = -0.5f * (u_max + u_min);
 
-//     /* 注入零序分量后，将电压从 [-1, 1] 映射到占空比 [0, 1]*/
+//     /* 注入零序分量，映射到占空比 [0, 1] */
 //     duty.a = (u_abc.a + u_zero) * 0.5f + 0.5f;
 //     duty.b = (u_abc.b + u_zero) * 0.5f + 0.5f;
 //     duty.c = (u_abc.c + u_zero) * 0.5f + 0.5f;
 
-//     // 占空比限幅保护, 防止过调制
+//     /* 占空比限幅 */
 //     if (duty.a > 1.0f) duty.a = 1.0f;
 //     else if (duty.a < 0.0f) duty.a = 0.0f;
 
@@ -44,8 +45,14 @@
 //     if (duty.c > 1.0f) duty.c = 1.0f;
 //     else if (duty.c < 0.0f) duty.c = 0.0f;
 
+//     /* 映射到 [0, 0.5] 与硬件接口匹配 */
+//     duty.a *= 0.5f;
+//     duty.b *= 0.5f;
+//     duty.c *= 0.5f;
+
 //     return duty;
 // }
+
 
 /**
  * @brief  标准SVPWM调制函数 (七段式，中心对齐PWM)
@@ -160,7 +167,6 @@ abc_t svpwm_update(alphabeta_t u_alphabeta)
         break;
     }
 
-    /* 占空比限幅 */
     duty.a = Tcmp1;
     duty.b = Tcmp2;
     duty.c = Tcmp3;
