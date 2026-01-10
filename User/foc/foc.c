@@ -39,11 +39,8 @@ void foc_alignment(foc_t *handle)
     /* 等待转子稳定 */
     HAL_Delay(100);
     
-    /* 读取当前编码器机械角度作为零点偏移 */
-    float mech_angle = as5047_get_angle_rad();
-    
-    /* 计算电角度偏移 = 机械角度 × 极对数 */
-    handle->angle_offset = mech_angle * MOTOR_POLE_PAIR;
+    /* 读取当前电角度作为零点偏移 */
+    handle->angle_offset = as5047_get_angle_rad();
     
     /* 关闭PWM输出 */
     tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
@@ -61,7 +58,7 @@ void foc_open_loop_run(foc_t *handle, float speed_rpm, float voltage_q)
      * delta_angle = 2π × 极对数 × (转速RPM / 60) × 采样周期
      * 采样周期 = 1/10000 = 0.0001s
      */
-    float delta_angle = 2.0f * M_PI * MOTOR_POLE_PAIR * 
+    float delta_angle = 2.0f * M_PI * AS5047_MOTOR_POLE_PAIR * 
                         (speed_rpm / 60.0f) * 0.0001f;
     
     /* 累加电角度 */

@@ -178,12 +178,14 @@ void as5047_init(void)
 }
 
 /**
- * @brief 读取机械角度 (弧度)
+ * @brief 读取电角度 (弧度)
+ * @return 电角度 = 机械角度 × 极对数
  */
 float as5047_get_angle_rad(void)
 {
     uint16_t raw = as5047_get_angle_raw();
-    return ((float)raw / (float)AS5047_RESOLUTION) * 2.0f * M_PI;
+    float mech_angle = ((float)raw / (float)AS5047_RESOLUTION) * 2.0f * M_PI;
+    return mech_angle * AS5047_MOTOR_POLE_PAIR;
 }
 
 /**

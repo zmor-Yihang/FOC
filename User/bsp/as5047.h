@@ -28,8 +28,11 @@
 #define AS5047_SPEED_CALC_DIV    10      /* 速度计算分频系数 (10kHz / 10 = 1kHz) */
 #define AS5047_SPEED_FILTER_ALPHA 0.05f  /* 速度滤波系数 (一阶低通) */
 
+/* 电机参数 */
+#define AS5047_MOTOR_POLE_PAIR   7       /* 电机极对数 */
+
 void as5047_init(void);
-float as5047_get_angle_rad(void);
+float as5047_get_angle_rad(void);        /* 返回电角度 (弧度) */
 void as5047_update_speed(void);
 float as5047_get_speed_rpm(void);
 float as5047_get_speed_rpm_lpf(void);

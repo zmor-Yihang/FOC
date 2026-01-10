@@ -10,7 +10,6 @@
 #include "bsp/adc.h"
 
 /* 电机参数 */
-#define MOTOR_POLE_PAIR 7 /* 电机极对数 */
 #define U_DC 12.0f        /* 直流母线电压 (V) */
 
 /* FOC 核心控制对象 */
