@@ -92,31 +92,59 @@ static void motor_ctrl_callback(void)
 /* 状态进入函数 - 必须在关中断状态下调用 */
 static void enter_idle(void)
 {
+    __disable_irq();
     foc_handle.open_loop_angle_el = 0.0f;
     tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
     foc_closed_loop_stop(&foc_handle);
     ctrl_mode = CTRL_MODE_IDLE;
+    __enable_irq();
 }
 
 static void enter_open_loop(void)
 {
+    __disable_irq();
     foc_closed_loop_stop(&foc_handle);
     foc_handle.open_loop_angle_el = 0.0f;
     ctrl_mode = CTRL_MODE_OPEN_LOOP;
+    __enable_irq();
 }
 
 static void enter_current(void)
 {
-    /* 复位PID并设置目标电流 */
+    __disable_irq();
+
+    /* 计算切换瞬间的角度差 */
+    float mech_angle = as5047_get_angle_rad();
+    float angle_el_real = mech_angle * MOTOR_POLE_PAIR - foc_handle.angle_offset;
+    float angle_diff = foc_handle.open_loop_angle_el - angle_el_real;
+
+    /* 开环输出的是 Ud=0, Uq=1V，在 open_loop_angle_el 方向
+     * 切换后要在 angle_el_real 方向输出等效电压
+     * 需要做坐标旋转 */
+    float sin_diff, cos_diff;
+    fast_sin_cos(angle_diff, &sin_diff, &cos_diff);
+
+    /* 开环的 (Ud=0, Uq=1) 旋转 angle_diff 后 */
+    float ud_init = 1.0f * cos_diff; 
+    float uq_init = 1.0f * sin_diff; 
+
+    /* 用这个初始化 PID 积分项 */
     pid_reset(&pid_id);
     pid_reset(&pid_iq);
+    pid_id.integral = ud_init;
+    pid_iq.integral = uq_init;
+
     foc_handle.target_id = 0.0f;
     foc_handle.target_iq = 0.5f;
+
     ctrl_mode = CTRL_MODE_CURRENT;
+
+    __enable_irq();
 }
 
 static void enter_speed(void)
 {
+    __disable_irq();
     /* 无扰切换：保持电流环状态连续，不复位 pid_id/pid_iq */
     pid_speed.integral = foc_handle.target_iq;
     pid_speed.out = foc_handle.target_iq;
@@ -124,6 +152,7 @@ static void enter_speed(void)
     speed_ramp_current = as5047_get_speed_rpm();
     speed_ramp_target = 3000.0f;
     ctrl_mode = CTRL_MODE_SPEED;
+    __enable_irq();
 }
 
 void motor_ctrl_bsp_init(void)
@@ -144,7 +173,7 @@ void motor_ctrl_bsp_init(void)
 
 void motor_ctrl_init(void)
 {
-    /* 电流环 PI: Kp=0.017, Ki=0.002826, 输出限幅 ±U_DC/2 */
+    /* 电流环 PI: Kp=0.017, Ki=0.002826, 输出限幅 ±U_DC/4 */
     pid_init(&pid_id, 0.017f, 0.002826f, -U_DC / 4.0f, U_DC / 4.0f);
     pid_init(&pid_iq, 0.017f, 0.002826f, -U_DC / 4.0f, U_DC / 4.0f);
 

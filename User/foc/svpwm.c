@@ -50,8 +50,9 @@
 /**
  * @brief  标准SVPWM调制函数 (七段式，中心对齐PWM)
  * @param  u_alphabeta - αβ轴电压 (V)
- * @retval duty - 输出的三相占空比 (范围 0.0 ~ 1.0)
+ * @retval duty - 输出的三相占空比 (范围 0.0 ~ 0.5)
  * @note   参考《现代永磁同步电机控制原理及MATLAB仿真》 2.4.2节
+ * @attention 设置CCR寄存器要乘2，因为是中心对齐模式，详见 tim1_set_pwm_duty()
  */
 abc_t svpwm_update(alphabeta_t u_alphabeta)
 {
