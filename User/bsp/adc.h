@@ -2,6 +2,7 @@
 #define __ADC_H__
 
 #include "stm32g4xx_hal.h"
+#include "utils/delay.h"
 
 /* ADC 采样值结构体 */
 typedef struct

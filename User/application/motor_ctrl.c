@@ -105,16 +105,15 @@ static void enter_open_loop(void)
 }
 
 static void enter_current(void)
-{   
+{
     /* 用这个初始化 PID 积分项 */
     pid_reset(&pid_id);
     pid_reset(&pid_iq);
     foc_handle.target_id = 0.0f;
     foc_handle.target_iq = 0.5f;
-    
+
     ctrl_mode = CTRL_MODE_CURRENT;
 }
-
 
 static void enter_speed(void)
 {
@@ -149,7 +148,7 @@ void motor_ctrl_init(void)
     pid_init(&pid_id, 0.017f, 0.002826f, -U_DC / 2.0f, U_DC / 2.0f);
     pid_init(&pid_iq, 0.017f, 0.002826f, -U_DC / 2.0f, U_DC / 2.0f);
 
-    /* 速度环 PI: Kp=0.05, Ki=0.00002, 输出限幅 ±2A */
+    /* 速度环 PI: Kp=0.05, Ki=0.00002, 输出限幅 ±4A */
     pid_init(&pid_speed, 0.05f, 0.00002f, -4.0f, 4.0f);
 
     /* 初始化 FOC 控制句柄 */

@@ -1,5 +1,124 @@
 #include "svpwm.h"
 
+// /**
+//  * @brief  标准七段式SVPWM (扇区法)
+//  * @param  u_alphabeta - αβ轴电压 (V)
+//  * @retval duty - 输出的三相占空比 (范围 0.0 ~ 0.5)
+//  * @note   占空比围绕0.25中心分布，与min-max注入法输出一致
+//  */
+// abc_t svpwm_update(alphabeta_t u_alphabeta)
+// {
+//     abc_t duty;
+//     int sector;
+//     float u1, u2, u3;
+//     float t1, t2, t0;
+//     float ta, tb, tc;
+
+//     float v_alpha = u_alphabeta.alpha;
+//     float v_beta = u_alphabeta.beta;
+
+//     /* 计算参考电压矢量在三个轴上的投影 */
+//     u1 = v_beta;
+//     u2 = (1.732051f * v_alpha - v_beta) * 0.5f;
+//     u3 = (-1.732051f * v_alpha - v_beta) * 0.5f;
+
+//     /* 扇区判断 (N = 4*sign(u3) + 2*sign(u2) + sign(u1)) */
+//     sector = (u1 > 0) + ((u2 > 0) << 1) + ((u3 > 0) << 2);
+
+//     /* 根据扇区计算矢量作用时间 */
+//     switch (sector)
+//     {
+//     case 3: /* 扇区1 */
+//         t1 = u2;
+//         t2 = u1;
+//         break;
+//     case 1: /* 扇区2 */
+//         t1 = -u3;
+//         t2 = -u2;
+//         break;
+//     case 5: /* 扇区3 */
+//         t1 = u1;
+//         t2 = u3;
+//         break;
+//     case 4: /* 扇区4 */
+//         t1 = -u2;
+//         t2 = -u1;
+//         break;
+//     case 6: /* 扇区5 */
+//         t1 = u3;
+//         t2 = u2;
+//         break;
+//     case 2: /* 扇区6 */
+//         t1 = -u1;
+//         t2 = -u3;
+//         break;
+//     default:
+//         t1 = 0;
+//         t2 = 0;
+//         break;
+//     }
+
+//     /* 归一化时间 */
+//     t1 = t1 * 1.732051f / U_DC;
+//     t2 = t2 * 1.732051f / U_DC;
+
+//     /* 过调制处理 */
+//     if (t1 + t2 > 1.0f)
+//     {
+//         float k = 1.0f / (t1 + t2);
+//         t1 *= k;
+//         t2 *= k;
+//     }
+
+//     t0 = 1.0f - t1 - t2;
+
+//     /* 计算三相占空比 (中心对称分布，与min-max注入法一致) */
+//     switch (sector)
+//     {
+//     case 3: /* 扇区1 */
+//         ta = t1 + t2 + t0 * 0.5f;
+//         tb = t2 + t0 * 0.5f;
+//         tc = t0 * 0.5f;
+//         break;
+//     case 1: /* 扇区2 */
+//         ta = t1 + t0 * 0.5f;
+//         tb = t1 + t2 + t0 * 0.5f;
+//         tc = t0 * 0.5f;
+//         break;
+//     case 5: /* 扇区3 */
+//         ta = t0 * 0.5f;
+//         tb = t1 + t2 + t0 * 0.5f;
+//         tc = t2 + t0 * 0.5f;
+//         break;
+//     case 4: /* 扇区4 */
+//         ta = t0 * 0.5f;
+//         tb = t1 + t0 * 0.5f;
+//         tc = t1 + t2 + t0 * 0.5f;
+//         break;
+//     case 6: /* 扇区5 */
+//         ta = t2 + t0 * 0.5f;
+//         tb = t0 * 0.5f;
+//         tc = t1 + t2 + t0 * 0.5f;
+//         break;
+//     case 2: /* 扇区6 */
+//         ta = t1 + t2 + t0 * 0.5f;
+//         tb = t0 * 0.5f;
+//         tc = t1 + t0 * 0.5f;
+//         break;
+//     default:
+//         ta = tb = tc = 0.5f;
+//         break;
+//     }
+
+//     /* 映射到 [0, 0.5] */
+//     duty.a = ta * 0.5f;
+//     duty.b = tb * 0.5f;
+//     duty.c = tc * 0.5f;
+
+//     return duty;
+// }
+
+
 /**
  * @brief  SVPWM调制函数 (min-max零序注入法)
  * @param  u_alphabeta - αβ轴电压 (V)，为了接口兼容性
@@ -59,126 +178,6 @@ abc_t svpwm_update(alphabeta_t u_alphabeta)
     duty.a *= 0.5f;
     duty.b *= 0.5f;
     duty.c *= 0.5f;
-
-    return duty;
-}
-
-/**
- * @brief  标准SVPWM调制函数 (七段式，中心对齐PWM)
- * @param  u_alphabeta - αβ轴电压 (V)
- * @retval duty - 输出的三相占空比 (范围 0.0 ~ 0.5)
- * @note   参考《现代永磁同步电机控制原理及MATLAB仿真》 2.4.2节
- * @attention 设置CCR寄存器要乘2，因为是中心对齐模式，详见 tim1_set_pwm_duty()
- */
-abc_t svpwm_update(alphabeta_t u_alphabeta)
-{
-    abc_t duty;
-    int32_t sector = 0;
-    float Tx, Ty, Ta, Tb, Tc;
-    float Tcmp1 = 0.0f, Tcmp2 = 0.0f, Tcmp3 = 0.0f;
-    float f_temp;
-    float v_alpha = u_alphabeta.alpha;
-    float v_beta = u_alphabeta.beta;
-
-    /* 扇区判断 */
-    if (v_beta > 0.0f)
-    {
-        sector = 1;
-    }
-    if ((1.732051f * v_alpha - v_beta) / 2.0f > 0.0f)
-    {
-        sector += 2;
-    }
-    if ((-1.732051f * v_alpha - v_beta) / 2.0f > 0.0f)
-    {
-        sector += 4;
-    }
-
-    /* 计算矢量作用时间 Tx, Ty (归一化到 Tpwm=1.0) */
-    switch (sector)
-    {
-    case 1:
-        Tx = (-1.5f * v_alpha + 0.866025f * v_beta) / U_DC;
-        Ty = (1.5f * v_alpha + 0.866025f * v_beta) / U_DC;
-        break;
-    case 2:
-        Tx = (1.5f * v_alpha + 0.866025f * v_beta) / U_DC;
-        Ty = -(1.732051f * v_beta) / U_DC;
-        break;
-    case 3:
-        Tx = -((-1.5f * v_alpha + 0.866025f * v_beta) / U_DC);
-        Ty = (1.732051f * v_beta) / U_DC;
-        break;
-    case 4:
-        Tx = -(1.732051f * v_beta) / U_DC;
-        Ty = (-1.5f * v_alpha + 0.866025f * v_beta) / U_DC;
-        break;
-    case 5:
-        Tx = (1.732051f * v_beta) / U_DC;
-        Ty = -((1.5f * v_alpha + 0.866025f * v_beta) / U_DC);
-        break;
-    default: /* sector 6 */
-        Tx = -((1.5f * v_alpha + 0.866025f * v_beta) / U_DC);
-        Ty = -((-1.5f * v_alpha + 0.866025f * v_beta) / U_DC);
-        break;
-    }
-
-    /* 过调制处理：限制 Tx + Ty <= 1.0 */
-    f_temp = Tx + Ty;
-    if (f_temp > 1.0f)
-    {
-        Tx /= f_temp;
-        Ty /= f_temp;
-    }
-
-    /* 计算七段式SVPWM的切换时间点 */
-    Ta = (1.0f - (Tx + Ty)) / 4.0f; /* 零矢量时间/4 */
-    Tb = Tx / 2.0f + Ta;
-    Tc = Ty / 2.0f + Tb;
-
-    /* 根据扇区分配三相占空比 */
-    switch (sector)
-    {
-    case 1:
-        Tcmp1 = Ta;
-        Tcmp2 = Tb;
-        Tcmp3 = Tc;
-        break;
-    case 2:
-        Tcmp1 = Tb;
-        Tcmp2 = Ta;
-        Tcmp3 = Tc;
-        break;
-    case 3:
-        Tcmp1 = Tc;
-        Tcmp2 = Ta;
-        Tcmp3 = Tb;
-        break;
-    case 4:
-        Tcmp1 = Tc;
-        Tcmp2 = Tb;
-        Tcmp3 = Ta;
-        break;
-    case 5:
-        Tcmp1 = Tb;
-        Tcmp2 = Tc;
-        Tcmp3 = Ta;
-        break;
-    case 6:
-        Tcmp1 = Ta;
-        Tcmp2 = Tc;
-        Tcmp3 = Tb;
-        break;
-    default:
-        Tcmp1 = 0.5f;
-        Tcmp2 = 0.5f;
-        Tcmp3 = 0.5f;
-        break;
-    }
-
-    duty.a = Tcmp1;
-    duty.b = Tcmp2;
-    duty.c = Tcmp3;
 
     return duty;
 }

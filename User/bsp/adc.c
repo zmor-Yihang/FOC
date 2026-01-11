@@ -167,7 +167,7 @@ void adc1_init(void)
         adc_offset.ib_offset = adc_offset.ib_offset * 0.998f + ib_volt * 0.002f;
         adc_offset.ic_offset = adc_offset.ic_offset * 0.998f + ic_volt * 0.002f;
 
-        HAL_Delay(1);
+        delay_us(10);
     }
 
     HAL_ADC_Stop_DMA(&hadc1);
