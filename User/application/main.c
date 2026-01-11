@@ -1,10 +1,8 @@
 #include "main.h"
-#include "motor_ctrl.h"
 
 int main(void)
 {
     motor_ctrl_bsp_init();
-    
     motor_ctrl_init();
 
     printf("FOC Ready! KEY to switch mode\n");
