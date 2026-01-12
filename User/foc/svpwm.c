@@ -123,7 +123,6 @@ abc_t svpwm_sector2(alphabeta_t u_alphabeta)
     abc_t duty;
     int32_t N = 0, sector = 0;
     float Tx = 0.0f, Ty = 0.0f;
-    float Ta, Tb, Tc;
 
     float v_alpha = u_alphabeta.alpha;
     float v_beta = u_alphabeta.beta;
@@ -179,16 +178,16 @@ abc_t svpwm_sector2(alphabeta_t u_alphabeta)
         Ty = Z;
         break;
     case 4:
-        Tx = -X;
-        Ty = -Y;
+        Tx = -Y;
+        Ty = -X;
         break;
     case 5:
         Tx = Z;
         Ty = Y;
         break;
     case 6:
-        Tx = -Z;
-        Ty = -X;
+        Tx = -X;
+        Ty = -Z;
         break;
     }
 
@@ -200,43 +199,41 @@ abc_t svpwm_sector2(alphabeta_t u_alphabeta)
         Ty *= k;
     }
 
-    /* 预计算公共项 */
-    Ta = (1.0f - Tx - Ty) * 0.5f;
-    Tb = Tx + Ta;
-    Tc = Ty + Tb;
+    /* 计算零矢量时间的一半 */
+    float t0_half = (1.0f - Tx - Ty) * 0.5f;
 
-    /* 根据扇区分配占空比 */
+    /* 根据扇区分配占空比 (中心对称分布，与sector1一致) */
     switch (sector)
     {
     case 1:
-        duty.a = Ta;
-        duty.b = Tb;
-        duty.c = Tc;
+        duty.a = Tx + Ty + t0_half;
+        duty.b = Ty + t0_half;
+        duty.c = t0_half;
         break;
     case 2:
-        duty.a = Tb;
-        duty.b = Ta;
-        duty.c = Tc;
+        duty.a = Tx + t0_half;
+        duty.b = Tx + Ty + t0_half;
+        duty.c = t0_half;
         break;
     case 3:
-        duty.a = Tc;
-        duty.b = Ta;
-        duty.c = Tb;
+        duty.a = t0_half;
+        duty.b = Tx + Ty + t0_half;
+        duty.c = Ty + t0_half;
         break;
     case 4:
-        duty.a = Tc;
-        duty.b = Tb;
-        duty.c = Ta;
+        duty.a = t0_half;
+        duty.b = Tx + t0_half;
+        duty.c = Tx + Ty + t0_half;
         break;
     case 5:
-        duty.a = Tb;
-        duty.b = Tc;
-        duty.c = Ta;
+        duty.a = Ty + t0_half;
+        duty.b = t0_half;
+        duty.c = Tx + Ty + t0_half;
         break;
     case 6:
-        duty.a = Ta;
-        duty.b = Tc;
-        duty.c = Tb;
+        duty.a = Tx + Ty + t0_half;
+        duty.b = t0_half;
+        duty.c = Tx + t0_half;
         break;
     default:
         duty.a = duty.b = duty.c = 0.5f;
