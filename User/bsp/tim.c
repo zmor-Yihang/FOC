@@ -97,10 +97,10 @@ void tim1_init(void)
 
 void tim1_set_pwm_duty(float duty1, float duty2, float duty3)
 {
-    /* 计算比较值：compare = duty * TIM1_PERIOD * 2 */
-    uint32_t compare1 = (uint32_t)(duty1 * TIM1_PERIOD * 2);
-    uint32_t compare2 = (uint32_t)(duty2 * TIM1_PERIOD * 2);
-    uint32_t compare3 = (uint32_t)(duty3 * TIM1_PERIOD * 2);
+    /* 计算比较值：compare = duty * TIM1_PERIOD */
+    uint32_t compare1 = (uint32_t)(duty1 * TIM1_PERIOD);
+    uint32_t compare2 = (uint32_t)(duty2 * TIM1_PERIOD);
+    uint32_t compare3 = (uint32_t)(duty3 * TIM1_PERIOD);
 
     /* 设置比较值 */
     __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, compare1);
