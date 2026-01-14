@@ -4,11 +4,6 @@
 #include "clark_park.h"
 #include "./utils/fast_sin_cos.h"
 
-/* 预计算常量，避免运行时重复计算 */
-#define SQRT3 1.732051f
-#define SQRT3_DIV2 0.866025f
-#define INV_SQRT3 0.577350f
-
 /* 直流母线电压 (V) */
 #define U_DC 12.0f
 
