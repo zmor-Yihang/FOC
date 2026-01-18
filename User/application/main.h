@@ -7,4 +7,6 @@
 
 #include "bsp/key.h"
 
+#include "test/test_speed.h"
+
 #endif /* __MAIN_H__ */
