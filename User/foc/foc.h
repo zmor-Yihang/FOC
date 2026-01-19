@@ -55,4 +55,9 @@ void foc_current_closed_loop_run(foc_t *handle, dq_t i_dq, float angle_el);
 void foc_speed_closed_loop_run(foc_t *handle, dq_t i_dq, float angle_el, float speed_rpm);
 void foc_closed_loop_stop(foc_t *handle);
 
+// 目标值设置函数
+void foc_set_target_id(foc_t *handle, float id);
+void foc_set_target_iq(foc_t *handle, float iq);
+void foc_set_target_speed(foc_t *handle, float speed_rpm);
+
 #endif /* __FOC_H__ */

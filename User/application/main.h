@@ -7,6 +7,7 @@
 
 #include "bsp/key.h"
 
-#include "test/test_speed.h"
+#include "motor/current_closed.h"
+#include "motor/speed_closed.h"
 
 #endif /* __MAIN_H__ */

@@ -1,6 +1,6 @@
 #include "foc.h"
 
-void foc_init(foc_t* handle, pid_controller_t *pid_id, pid_controller_t *pid_iq, pid_controller_t *pid_speed)
+void foc_init(foc_t *handle, pid_controller_t *pid_id, pid_controller_t *pid_iq, pid_controller_t *pid_speed)
 {
     handle->target_speed = 0;
     handle->target_id = 0;
@@ -30,18 +30,18 @@ void foc_alignment(foc_t *handle)
 {
     /* 施加d轴电压，让转子对齐到电角度0位置 */
     dq_t u_dq = {.d = 1.0f, .q = 0.0f};
-    
+
     /* 开环输出，固定电角度为0 */
     alphabeta_t alpha_beta = ipark_transform(u_dq, 0);
     abc_t duty_abc = svpwm_update(alpha_beta);
     tim1_set_pwm_duty(duty_abc.a, duty_abc.b, duty_abc.c);
-    
+
     /* 等待转子稳定 */
     HAL_Delay(100);
-    
+
     /* 读取当前电角度作为零点偏移 */
     handle->angle_offset = as5047_get_angle_rad();
-    
+
     /* 关闭PWM输出 */
     tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
 }
@@ -58,15 +58,15 @@ void foc_open_loop_run(foc_t *handle, float speed_rpm, float voltage_q)
      * delta_angle = 2π × 极对数 × (转速RPM / 60) × 采样周期
      * 采样周期 = 1/10000 = 0.0001s
      */
-    float delta_angle = 2.0f * M_PI * AS5047_MOTOR_POLE_PAIR * 
+    float delta_angle = 2.0f * M_PI * AS5047_MOTOR_POLE_PAIR *
                         (speed_rpm / 60.0f) * 0.0001f;
-    
+
     /* 累加电角度 */
     handle->open_loop_angle_el += delta_angle;
-    
+
     /* 输出电压矢量：d轴为0，q轴为设定电压 */
     dq_t u_dq = {.d = 0.0f, .q = voltage_q};
-    
+
     /* 执行开环输出 */
     alphabeta_t alpha_beta = ipark_transform(u_dq, handle->open_loop_angle_el);
     abc_t duty_abc = svpwm_update(alpha_beta);
@@ -133,4 +133,19 @@ void foc_closed_loop_stop(foc_t *handle)
 
     /* 输出50%占空比，电机停止 */
     tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
+}
+
+void foc_set_target_id(foc_t *handle, float id)
+{
+    handle->target_id = id;
+}
+
+void foc_set_target_iq(foc_t *handle, float iq)
+{
+    handle->target_iq = iq;
+}
+
+void foc_set_target_speed(foc_t *handle, float speed_rpm)
+{
+    handle->target_speed = speed_rpm;
 }
