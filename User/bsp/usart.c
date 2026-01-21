@@ -1,10 +1,76 @@
 #include "usart.h"
 
-/*----------------------重定向串口打印--------------------------*/
+/*----------------------重定向串口打印（DMA + FIFO）--------------------------*/
+_fff_declare(uint8_t, fifo_uart_tx, 1024); // 声明1024字节FIFO
+_fff_init(fifo_uart_tx);                   // 初始化FIFO
+
+/* DMA发送临时缓冲区 */
+static uint8_t tx_dma_buf[256];
+static volatile uint8_t tx_dma_busy = 0;
+static volatile uint32_t tx_overflow_count = 0;  // 溢出计数器
+
+/* 启动DMA发送 */
+static void usart1_start_dma_tx(void)
+{
+    if (tx_dma_busy || _fff_is_empty(fifo_uart_tx))
+    {
+        return; /* DMA忙或FIFO空，直接返回 */
+    }
+
+    /* 从FIFO读取数据到DMA缓冲区 */
+    uint16_t len = 0;
+    while (len < sizeof(tx_dma_buf) && !_fff_is_empty(fifo_uart_tx))
+    {
+        tx_dma_buf[len++] = _fff_read(fifo_uart_tx);
+    }
+
+    if (len > 0)
+    {
+        tx_dma_busy = 1;
+        HAL_UART_Transmit_DMA(&huart1, tx_dma_buf, len);
+    }
+}
+
+/* DMA发送完成回调 */
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+        tx_dma_busy = 0;
+        
+        /* 如果FIFO还有数据，继续发送 */
+        usart1_start_dma_tx();
+    }
+}
+
 int __io_putchar(int ch)
 {
-    /* 使用HAL库函数发送单个字符，超时时间为1000ms */
-    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 1000);
+    /* 检查FIFO是否满 */
+    if (_fff_is_full(fifo_uart_tx))
+    {
+        /* FIFO满，尝试启动DMA发送 */
+        if (!tx_dma_busy)
+        {
+            usart1_start_dma_tx();
+        }
+        
+        /* 如果还是满，丢弃数据（非阻塞） */
+        if (_fff_is_full(fifo_uart_tx))
+        {
+            tx_overflow_count++;
+            return ch;  // 丢弃数据，避免阻塞
+        }
+    }
+
+    /* 写入FIFO */
+    _fff_write(fifo_uart_tx, (uint8_t)ch);
+
+    /* 如果DMA空闲且FIFO有足够数据（>32字节），启动发送 */
+    if (!tx_dma_busy && _fff_mem_free(fifo_uart_tx) < (1024 - 32))
+    {
+        usart1_start_dma_tx();
+    }
+
     return ch;
 }
 

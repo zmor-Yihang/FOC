@@ -49,6 +49,7 @@ void foc_alignment(foc_t *handle);
 
 /* 开环控制 */
 void foc_open_loop_run(foc_t *handle, float speed_rpm, float voltage_q);
+void foc_if_current_run(foc_t *handle, dq_t i_dq, float speed_rpm, float current_q);
 
 /* 闭环控制 */
 void foc_current_closed_loop_run(foc_t *handle, dq_t i_dq, float angle_el);

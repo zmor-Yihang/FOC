@@ -1,20 +1,19 @@
 #include "smo.h"
 #include "pid.h"
 
-// 滑模控制率 - 符号函数
+// 滑模控制率 - 饱和函数
 static float smo_fun(float error, float boundary)
 {
-    (void)boundary; // 符号函数不使用边界层
-    
-    if (error > 0.0f)
+    // 饱和函数：在边界层内线性，边界层外饱和
+    if (error > boundary)
         return 1.0f;
-    else if (error < 0.0f)
+    else if (error < -boundary)
         return -1.0f;
     else
-        return 0.0f;
+        return error / boundary;  // 边界层内线性过渡
 }
 
-void smo_init(smo_t *smo, float rs, float ls, float poles, float ts, float k_slide, float k_lpf, float boundary, float fc)
+void smo_init(smo_t *smo, float rs, float ls, float poles, float ts, float k_slide, float k_lpf, float boundary, float fc, float k_speed_lpf)
 {
     // 电机参数
     smo->rs = rs;
@@ -26,18 +25,19 @@ void smo_init(smo_t *smo, float rs, float ls, float poles, float ts, float k_sli
     smo->k_slide = k_slide;
     smo->k_lpf = k_lpf;
     smo->boundary = boundary;
+    smo->k_speed_lpf = k_speed_lpf;
 
     // PLL 参数 - 使用 pid_init 初始化
     // 典型值：Kp = 2 * ζ * ωn, Ki = ωn^2
     // ωn = 2π * fc
     float wn = 2.0f * 3.14159265f * fc;
-    float zeta = 0.707f; // 阻尼系数
+    float zeta = 1.0f; // 阻尼系数
     float kp = 2.0f * zeta * wn;
     float ki = wn * wn * ts; // 注意：pid_calculate 内部不乘 ts，所以这里预乘
 
     // 速度范围：假设最大 ±10000 RPM
     // 转换为电角速度：ω_elec = RPM * 2π * poles / 60
-    float max_rpm = 10000.0f;
+    float max_rpm = 6000.0f;
     float max_speed_rad_s = max_rpm * 2.0f * 3.14159265f * poles / 60.0f;
 
     pid_init(&smo->pll, kp, ki, -max_speed_rad_s, max_speed_rad_s);
@@ -57,6 +57,7 @@ void smo_init(smo_t *smo, float rs, float ls, float poles, float ts, float k_sli
 
     smo->theta_est = 0.0f;
     smo->speed_est = 0.0f;
+    smo->speed_est_filt = 0.0f;
 }
 
 void smo_estimate(smo_t *smo)
@@ -65,7 +66,11 @@ void smo_estimate(smo_t *smo)
     float F = 1.0f - smo->rs * smo->ts / smo->ls;
     float G = smo->ts / smo->ls;
 
-    // 计算误差
+    // 先更新 (k+1) 时刻电流估计值（使用上一次的 e 和 z）
+    smo->i_alpha_est = F * smo->i_alpha_est + G * (smo->u_alpha - smo->e_alpha - smo->z_alpha);
+    smo->i_beta_est = F * smo->i_beta_est + G * (smo->u_beta - smo->e_beta - smo->z_beta);
+
+    // 用最新的估计值计算误差（减少延迟）
     float i_err_alpha = smo->i_alpha_est - smo->i_alpha;
     float i_err_beta = smo->i_beta_est - smo->i_beta;
 
@@ -73,13 +78,9 @@ void smo_estimate(smo_t *smo)
     smo->z_alpha = smo->k_slide * smo_fun(i_err_alpha, smo->boundary);
     smo->z_beta = smo->k_slide * smo_fun(i_err_beta, smo->boundary);
 
-    // 低通滤波
+    // 低通滤波得到反电势估计
     smo->e_alpha = smo->k_lpf * smo->e_alpha + (1 - smo->k_lpf) * smo->z_alpha;
     smo->e_beta = smo->k_lpf * smo->e_beta + (1 - smo->k_lpf) * smo->z_beta;
-
-    // 更新 (k+1) 时刻电流估计值
-    smo->i_alpha_est = F * smo->i_alpha_est + G * (smo->u_alpha - smo->e_alpha - smo->z_alpha);
-    smo->i_beta_est = F * smo->i_beta_est + G * (smo->u_beta - smo->e_beta - smo->z_beta);
 
     // 利用 PLL 估算角度和速度
     float sin_theta, cos_theta;
@@ -94,6 +95,9 @@ void smo_estimate(smo_t *smo)
 
     // 转换为机械转速 RPM: ω_mech = ω_elec / poles
     smo->speed_est = speed_rad_s * 60.0f / (2.0f * 3.14159265f * smo->poles);
+
+    // 对速度进行低通滤波
+    smo->speed_est_filt = smo->k_speed_lpf * smo->speed_est_filt + (1.0f - smo->k_speed_lpf) * smo->speed_est;
 
     // 积分速度得到角度（使用 rad/s）
     smo->theta_est += speed_rad_s * smo->ts;
@@ -121,7 +125,7 @@ float smo_get_angle(smo_t *smo)
     return smo->theta_est;
 }
 
-float smo_get_speed(smo_t *smo)
+float smo_get_speed_rpm(smo_t *smo)
 {
-    return smo->speed_est;
+    return smo->speed_est_filt;  // 返回滤波后的速度
 }

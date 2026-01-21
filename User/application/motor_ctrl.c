@@ -115,7 +115,7 @@ static void motor_ctrl_callback(void)
 #if USE_ENCODER
         float speed_feedback = as5047_get_speed_rpm();
 #else
-        float speed_feedback = smo_get_speed(&smo);
+        float speed_feedback = smo_get_speed_rpm(&smo);
 #endif
         foc_speed_closed_loop_run(&foc_handle, i_dq, angle_el, speed_feedback);
 
@@ -194,7 +194,7 @@ void motor_ctrl_init(void)
     pid_init(&pid_speed, 0.05f, 0.00002f, -4.0f, 4.0f);
 
     /* 初始化 SMO 观测器 */
-    smo_init(&smo, 0.12f, 0.0003, 7.0f, 0.0001f, 0.17f, 0.9f, 3.0f, 100.0f);
+    smo_init(&smo, 0.12f, 0.0003, 7.0f, 0.0001f, 0.17f, 0.9f, 3.0f, 100.0f, 0.95f);
 
     /* 初始化 FOC 控制句柄 */
     foc_init(&foc_handle, &pid_id, &pid_iq, &pid_speed);
@@ -266,7 +266,7 @@ void motor_ctrl_print_status(void)
     // #endif
     //         printf_period(500, "[%s] RPM[E/S]:%.0f/%.0f AngErr:%.1f° Id/Iq:%.2f/%.2f\n",
     //                       mode_str,
-    //                       as5047_get_speed_rpm_lpf(), smo_get_speed(&smo),
+    //                       as5047_get_speed_rpm_lpf(), smo_get_speed_rpm(&smo),
     //                       angle_err, i_dq_feedback.d, i_dq_feedback.q);
     //     }
 }

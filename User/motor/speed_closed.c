@@ -1,5 +1,6 @@
 #include "speed_closed.h"
 
+
 static foc_t foc_speed_closed_handle;
 
 static pid_controller_t pid_id;
@@ -9,6 +10,7 @@ static pid_controller_t pid_speed;
 
 // 打印用
 static float speed_rpm_temp = 0.0f;
+static float angle_el_temp = 0.0f;
 
 static void speed_closed_callback(void)
 {
@@ -21,6 +23,7 @@ static void speed_closed_callback(void)
 
     // 打印用
     speed_rpm_temp = speed_feedback;
+    angle_el_temp = angle_el;
 
     // 获取电流反馈值
     adc_values_t adc_values;
@@ -60,5 +63,12 @@ void speed_closed_init(float speed_rpm)
 
 void print_speed_info(void)
 {
-    printf_period(10, "%.2f\n", speed_rpm_temp);
+    // 归一化角度到 [0, 2π) 范围
+    float angle_normalized = fmodf(angle_el_temp, 2.0f * M_PI);
+    if (angle_normalized < 0.0f) {
+        angle_normalized += 2.0f * M_PI;
+    }
+    // 转换为角度 (0-360°)
+    float angle_deg = angle_normalized * 57.2958f;
+    printf("%.2f, %.2f\n", speed_rpm_temp, angle_deg);
 }

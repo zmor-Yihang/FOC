@@ -34,15 +34,17 @@ typedef struct
     float z_beta;
 
     // 观测角度和速度
-    float theta_est; // 估算角度 (rad)
-    float speed_est; // 估算速度 (rpm)
+    float theta_est;       // 估算角度 (rad)
+    float speed_est;       // 估算速度 (rpm)
+    float speed_est_filt;  // 滤波后的速度 (rpm)
+    float k_speed_lpf;     // 速度低通滤波系数 (0.0 ~ 1.0)
 
     // PLL 使用 PI 控制器
     pid_controller_t pll;
 
 } smo_t;
 
-void smo_init(smo_t *smo, float rs, float ls, float poles, float ts, float k_slide, float k_lpf, float boundary, float fc);
+void smo_init(smo_t *smo, float rs, float ls, float poles, float ts, float k_slide, float k_lpf, float boundary, float fc, float k_speed_lpf);
 
 void smo_estimate(smo_t *smo);
 
@@ -52,6 +54,6 @@ float smo_get_bemf_beta(smo_t *smo);
 
 float smo_get_angle(smo_t *smo);
 
-float smo_get_speed(smo_t *smo);
+float smo_get_speed_rpm(smo_t *smo);
 
 #endif /* smo.h */

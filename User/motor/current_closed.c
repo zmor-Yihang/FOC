@@ -57,5 +57,5 @@ void current_closed_init(float id, float iq)
 
 void print_current_info(void)
 {
-    printf_period(10, "%.2f, %.2f\n", i_dq_temp.d, i_dq_temp.q);
+    printf("%.2f, %.2f\n", i_dq_temp.d, i_dq_temp.q);
 }

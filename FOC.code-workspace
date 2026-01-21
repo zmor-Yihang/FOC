@@ -21,7 +21,8 @@
             "*.cxx": "cpp",
             "*.cc": "cpp",
             "*.tcc": "c",
-            "cstdint": "c"
+            "cstdint": "c",
+            "random": "c"
         },
         "[yaml]": {
             "editor.insertSpaces": true,

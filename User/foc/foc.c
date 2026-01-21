@@ -58,8 +58,7 @@ void foc_open_loop_run(foc_t *handle, float speed_rpm, float voltage_q)
      * delta_angle = 2π × 极对数 × (转速RPM / 60) × 采样周期
      * 采样周期 = 1/10000 = 0.0001s
      */
-    float delta_angle = 2.0f * M_PI * AS5047_MOTOR_POLE_PAIR *
-                        (speed_rpm / 60.0f) * 0.0001f;
+    float delta_angle = 2.0f * M_PI * AS5047_MOTOR_POLE_PAIR * (speed_rpm / 60.0f) * 0.0001f;
 
     /* 累加电角度 */
     handle->open_loop_angle_el += delta_angle;
@@ -71,6 +70,36 @@ void foc_open_loop_run(foc_t *handle, float speed_rpm, float voltage_q)
     alphabeta_t alpha_beta = ipark_transform(u_dq, handle->open_loop_angle_el);
     abc_t duty_abc = svpwm_update(alpha_beta);
     tim1_set_pwm_duty(duty_abc.a, duty_abc.b, duty_abc.c);
+}
+
+/**
+ * @brief I/F 电流开环运行 - 在定时中断中调用 (10kHz)
+ * @param handle    FOC 控制句柄
+ * @param i_dq      dq 轴电流反馈
+ * @param speed_rpm 目标转速 (RPM)，旋转磁场速度
+ * @param current_q Q轴目标电流 (A)
+ */
+void foc_if_current_run(foc_t *handle, dq_t i_dq, float speed_rpm, float current_iq)
+{
+    float delta_angle = 2.0f * M_PI * AS5047_MOTOR_POLE_PAIR * (speed_rpm / 60.0f) * 0.0001f;
+
+    /* 累加电角度 */
+    handle->open_loop_angle_el += delta_angle;
+
+    /* 设置目标电流 */
+    handle->target_id = 0.0f;
+    handle->target_iq = current_iq;
+
+    /* 电流环 PID 控制 */
+    handle->v_d_out = pid_calculate(handle->pid_id, handle->target_id, i_dq.d);
+    handle->v_q_out = pid_calculate(handle->pid_iq, handle->target_iq, i_dq.q);
+
+    /* 逆 Park 变换 - 使用 I/F 角度 */
+    alphabeta_t v_alphabeta = ipark_transform((dq_t){.d = handle->v_d_out, .q = handle->v_q_out}, handle->open_loop_angle_el);
+
+    /* SVPWM 输出 */
+    handle->duty_cycle = svpwm_update(v_alphabeta);
+    tim1_set_pwm_duty(handle->duty_cycle.a, handle->duty_cycle.b, handle->duty_cycle.c);
 }
 
 /**
