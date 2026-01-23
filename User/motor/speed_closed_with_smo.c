@@ -67,8 +67,8 @@ static void speed_closed_with_smo_callback(void)
 void speed_closed_with_smo_init(float speed_rpm)
 {
     // PID 初始化
-    pid_init(&pid_id, 0.017f, 0.002826f, -U_DC / 2.0f, U_DC / 2.0f);
-    pid_init(&pid_iq, 0.017f, 0.002826f, -U_DC / 2.0f, U_DC / 2.0f);
+    pid_init(&pid_id, 0.017f, 0.002826f, -U_DC / 3.0f, U_DC / 3.0f);
+    pid_init(&pid_iq, 0.017f, 0.002826f, -U_DC / 3.0f, U_DC / 3.0f);
     pid_init(&pid_speed, 0.05f, 0.00002f, -4.0f, 4.0f);
 
     // FOC 初始化

@@ -8,6 +8,7 @@
 #include "bsp/as5047.h"
 #include "bsp/tim.h"
 #include "bsp/adc.h"
+#include "flux_weakening.h"
 
 /* 电机参数 */
 #define U_DC 12.0f        /* 直流母线电压 (V) */
@@ -22,6 +23,9 @@ typedef struct
     float target_speed;
     float target_id;
     float target_iq;
+
+    /* 弱磁控制对象 */
+    flux_weak_t flux_weak;
 
     /* 电压控制量 */
     float v_d_out; /* D轴电压输出 */

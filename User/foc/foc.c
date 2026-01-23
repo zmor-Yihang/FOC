@@ -24,6 +24,10 @@ void foc_init(foc_t *handle, pid_controller_t *pid_id, pid_controller_t *pid_iq,
 
     handle->angle_offset = 0.0f;
     handle->open_loop_angle_el = 0.0f;
+    
+    /* 初始化弱磁控制器 */
+    // 弱磁电流不要超过-30A，防止永磁体退磁
+    flux_weak_init(&handle->flux_weak, U_DC, 0.95f, 0.005f, -10.0f);
 }
 
 void foc_alignment(foc_t *handle)
@@ -110,8 +114,14 @@ void foc_if_current_run(foc_t *handle, dq_t i_dq, float speed_rpm, float current
  */
 void foc_current_closed_loop_run(foc_t *handle, dq_t i_dq, float angle_el)
 {
+    /* 计算弱磁电流补偿 */
+    float id_weak = flux_weak_calculate(&handle->flux_weak, handle->v_d_out, handle->v_q_out);
+
+    /* 最终的目标 Id = 用户设定值 + 弱磁补偿值 */
+    float id_final = handle->target_id + id_weak;
+
     /* 电流环 PID */
-    handle->v_d_out = pid_calculate(handle->pid_id, handle->target_id, i_dq.d);
+    handle->v_d_out = pid_calculate(handle->pid_id, id_final, i_dq.d);
     handle->v_q_out = pid_calculate(handle->pid_iq, handle->target_iq, i_dq.q);
 
     /* 逆 Park 变换 */
