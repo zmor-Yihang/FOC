@@ -11,7 +11,7 @@ void flux_weak_init(flux_weak_t *flux_weak, float u_dc, float u_ref_ratio, float
     pid_init(&flux_weak->pid, 0.0f, ki, id_min, 0.0f);
 
     flux_weak->u_current_filtered = 0.0f;
-    flux_weak->voltage_filter_const = 0.1f; /* 默认滤波系数，可根据需要调整 */
+    flux_weak->voltage_filter_const = 0.02f; /* 默认滤波系数，可根据需要调整 */
 }
 
 float flux_weak_calculate(flux_weak_t *flux_weak, float v_d, float v_q)

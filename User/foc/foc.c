@@ -24,10 +24,10 @@ void foc_init(foc_t *handle, pid_controller_t *pid_id, pid_controller_t *pid_iq,
 
     handle->angle_offset = 0.0f;
     handle->open_loop_angle_el = 0.0f;
-    
+
     /* 初始化弱磁控制器 */
     // 弱磁电流不要超过-30A，防止永磁体退磁
-    flux_weak_init(&handle->flux_weak, U_DC, 0.95f, 0.005f, -10.0f);
+    flux_weak_init(&handle->flux_weak, U_DC, 0.85f, 0.005f, -30.0f);
 }
 
 void foc_alignment(foc_t *handle)
@@ -114,14 +114,8 @@ void foc_if_current_run(foc_t *handle, dq_t i_dq, float speed_rpm, float current
  */
 void foc_current_closed_loop_run(foc_t *handle, dq_t i_dq, float angle_el)
 {
-    /* 计算弱磁电流补偿 */
-    float id_weak = flux_weak_calculate(&handle->flux_weak, handle->v_d_out, handle->v_q_out);
-
-    /* 最终的目标 Id = 用户设定值 + 弱磁补偿值 */
-    float id_final = handle->target_id + id_weak;
-
     /* 电流环 PID */
-    handle->v_d_out = pid_calculate(handle->pid_id, id_final, i_dq.d);
+    handle->v_d_out = pid_calculate(handle->pid_id, handle->target_id, i_dq.d);
     handle->v_q_out = pid_calculate(handle->pid_iq, handle->target_iq, i_dq.q);
 
     /* 逆 Park 变换 */
@@ -144,7 +138,7 @@ void foc_speed_closed_loop_run(foc_t *handle, dq_t i_dq, float angle_el, float s
     /* 速度环 → 输出目标 Iq */
     handle->target_iq = pid_calculate(handle->pid_speed, handle->target_speed, speed_rpm);
 
-    /* Id 目标设为 0 */
+    /* Id 目标设为 0  */
     handle->target_id = 0.0f;
 
     /* 复用电流闭环 */
@@ -152,8 +146,39 @@ void foc_speed_closed_loop_run(foc_t *handle, dq_t i_dq, float angle_el, float s
 }
 
 /**
- * @brief 停止闭环运行，复位 PID 状态
+ * @brief 弱磁速度闭环运行
+ * @param handle    FOC 控制句柄
+ * @param i_dq      dq 轴电流反馈
+ * @param angle_el  电角度 (rad)
+ * @param speed_rpm 速度反馈 (RPM)
  */
+void foc_flux_weak_speed_closed_loop_run(foc_t *handle, dq_t i_dq, float angle_el, float speed_rpm)
+{
+    /* 速度环输出目标 Iq */
+    handle->target_iq = pid_calculate(handle->pid_speed, handle->target_speed, speed_rpm);
+    /* 弱磁环输出 Id 补偿 */
+    float id_weak = flux_weak_calculate(&handle->flux_weak, handle->v_d_out, handle->v_q_out);
+    /* 目标 Id = 弱磁补偿值 */
+    handle->target_id = id_weak;
+    /* 进入电流闭环 */
+    foc_current_closed_loop_run(handle, i_dq, angle_el);
+}
+
+void foc_set_target_id(foc_t *handle, float id)
+{
+    handle->target_id = id;
+}
+
+void foc_set_target_iq(foc_t *handle, float iq)
+{
+    handle->target_iq = iq;
+}
+
+void foc_set_target_speed(foc_t *handle, float speed_rpm)
+{
+    handle->target_speed = speed_rpm;
+}
+
 void foc_closed_loop_stop(foc_t *handle)
 {
     /* 复位所有 PID 控制器，清除积分项 */
@@ -172,19 +197,4 @@ void foc_closed_loop_stop(foc_t *handle)
 
     /* 输出50%占空比，电机停止 */
     tim1_set_pwm_duty(0.5f, 0.5f, 0.5f);
-}
-
-void foc_set_target_id(foc_t *handle, float id)
-{
-    handle->target_id = id;
-}
-
-void foc_set_target_iq(foc_t *handle, float iq)
-{
-    handle->target_iq = iq;
-}
-
-void foc_set_target_speed(foc_t *handle, float speed_rpm)
-{
-    handle->target_speed = speed_rpm;
 }

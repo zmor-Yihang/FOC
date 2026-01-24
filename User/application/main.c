@@ -13,9 +13,9 @@ int main(void)
     tim1_init();
     adc1_init();
 
-    speed_closed_init(6500);
-
-    // sensorless_smo_init(3000);
+    sensorless_smo_init(800);
+    // speed_closed_init(6500);
+    // flux_weak_speed_closed_init(6500);
 
     while (1)
     {
@@ -24,7 +24,8 @@ int main(void)
             printf("Stop!\n");
             break;
         }
-        print_speed_info();
-        // print_sensorless_info();
+        print_sensorless_info();
+        // print_speed_info();
+        // print_flux_weak_speed_info();
     }
 }
