@@ -112,7 +112,7 @@ void sensorless_smo_init(float speed_rpm)
     foc_init(&foc_smo_handle, &pid_id, &pid_iq, &pid_speed);
 
     // 初始化 SMO 观测器
-    smo_init(&smo, 0.12f, 0.0003f, 7.0f, 0.0001f,
+    smo_init(&smo, 0.12f, 0.00003f, 7.0f, 0.0001f,
              1.4f,   // k_slide - 滑模增益
              0.6f,   // k_lpf - 低通滤波系数
              3.0f,   // boundary - 边界层厚度

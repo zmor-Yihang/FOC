@@ -15,6 +15,7 @@
 #include "motor/sensorless_smo.h"
 #include "motor/flux_weak_speed_closed.h"
 #include "motor/speed_closed_with_smo.h"
+#include "motor/speed_closed_with_luenberger.h"
 
 
 #endif /* __MAIN_H__ */
