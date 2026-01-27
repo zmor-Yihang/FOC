@@ -13,7 +13,8 @@ int main(void)
     tim1_init();
     adc1_init();
 
-    sensorless_smo_init(800);
+    // sensorless_smo_init(1000);
+    speed_closed_with_smo_init(500);
     // speed_closed_init(6500);
     // flux_weak_speed_closed_init(6500);
 
@@ -24,7 +25,8 @@ int main(void)
             printf("Stop!\n");
             break;
         }
-        print_sensorless_info();
+        // print_sensorless_info();
+        print_speed_smo_info();
         // print_speed_info();
         // print_flux_weak_speed_info();
     }

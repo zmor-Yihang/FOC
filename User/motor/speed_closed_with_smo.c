@@ -16,6 +16,8 @@ static float speed_rpm_encoder = 0.0f;
 static float angle_el_encoder = 0.0f;
 static float speed_rpm_smo = 0.0f;
 static float angle_el_smo = 0.0f;
+static float bemf_alpha_smo = 0.0f;
+static float bemf_beta_smo = 0.0f;
 
 static void speed_closed_with_smo_callback(void)
 {
@@ -62,6 +64,8 @@ static void speed_closed_with_smo_callback(void)
     angle_el_encoder = angle_el;
     speed_rpm_smo = speed_smo;
     angle_el_smo = angle_smo;
+    bemf_alpha_smo = smo_get_bemf_alpha(&smo);
+    bemf_beta_smo = smo_get_bemf_beta(&smo);
 }
 
 void speed_closed_with_smo_init(float speed_rpm)
@@ -76,11 +80,11 @@ void speed_closed_with_smo_init(float speed_rpm)
 
     // 初始化 SMO 观测器
     smo_init(&smo, 0.12f, 0.0003f, 7.0f, 0.0001f,
-             1.4f,   // k_slide - 滑模增益
-             0.4f,   // k_lpf - 低通滤波系数
+             0.6f,   // k_slide - 滑模增益
+             0.1f,   // k_lpf - 低通滤波系数
              3.0f,   // boundary - 边界层厚度
-             100.0f, // fc - PLL截止频率
-             0.95f); // k_speed_lpf - 速度滤波系数
+             200.0f, // fc - PLL截止频率
+             0.05f); // k_speed_lpf - 速度滤波系数
 
     // 设置目标值
     foc_set_target_id(&foc_handle, 0.0f);
@@ -112,10 +116,7 @@ void print_speed_smo_info(void)
     float angle_encoder_deg = angle_encoder_normalized * 57.2958f;
     float angle_smo_deg = angle_smo_normalized * 57.2958f;
 
-    // 输出格式：编码器速度, 编码器角度, SMO速度, SMO角度
-    printf("%.2f, %.2f, %.2f, %.2f\n",
-           speed_rpm_encoder,
-           angle_encoder_deg,
-           speed_rpm_smo,
-           angle_smo_deg);
+    // 发送 JustFloat 协议数据
+    float data[6] = {speed_rpm_encoder, speed_rpm_smo, angle_encoder_deg, angle_smo_deg, bemf_alpha_smo, bemf_beta_smo};
+    printf_vofa(data, 6);
 }

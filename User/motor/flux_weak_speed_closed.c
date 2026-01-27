@@ -71,9 +71,6 @@ void flux_weak_speed_closed_init(float speed_rpm)
 
 void print_flux_weak_speed_info(void)
 {
-    printf("%.2f, %.2f, %.2f, %.2f\n",
-           speed_rpm_temp,
-           i_dq_temp.d,
-           i_dq_temp.q,
-           id_target_temp);
+    float data[4] = {speed_rpm_temp, i_dq_temp.d, i_dq_temp.q, id_target_temp};
+    printf_vofa(data, 4);
 }

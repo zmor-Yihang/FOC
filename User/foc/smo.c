@@ -10,7 +10,7 @@ static float smo_fun(float error, float boundary)
     else if (error < -boundary)
         return -1.0f;
     else
-        return error / boundary;  // 边界层内线性过渡
+        return error / boundary; // 边界层内线性过渡
 }
 
 void smo_init(smo_t *smo, float rs, float ls, float poles, float ts, float k_slide, float k_lpf, float boundary, float fc, float k_speed_lpf)
@@ -37,7 +37,7 @@ void smo_init(smo_t *smo, float rs, float ls, float poles, float ts, float k_sli
 
     // 速度范围：假设最大 ±10000 RPM
     // 转换为电角速度：ω_elec = RPM * 2π * poles / 60
-    float max_rpm = 6000.0f;
+    float max_rpm = 10000.0f;
     float max_speed_rad_s = max_rpm * 2.0f * 3.14159265f * poles / 60.0f;
 
     pid_init(&smo->pll, kp, ki, -max_speed_rad_s, max_speed_rad_s);
@@ -56,6 +56,7 @@ void smo_init(smo_t *smo, float rs, float ls, float poles, float ts, float k_sli
     smo->z_beta = 0.0f;
 
     smo->theta_est = 0.0f;
+    smo->theta_comp = 0.0f;
     smo->speed_est = 0.0f;
     smo->speed_est_filt = 0.0f;
 }
@@ -66,11 +67,11 @@ void smo_estimate(smo_t *smo)
     float F = 1.0f - smo->rs * smo->ts / smo->ls;
     float G = smo->ts / smo->ls;
 
-    // 先更新 (k+1) 时刻电流估计值（使用上一次的 e 和 z）
+    // 先更新 (k+1) 时刻电流估计值
     smo->i_alpha_est = F * smo->i_alpha_est + G * (smo->u_alpha - smo->e_alpha - smo->z_alpha);
     smo->i_beta_est = F * smo->i_beta_est + G * (smo->u_beta - smo->e_beta - smo->z_beta);
 
-    // 用最新的估计值计算误差（减少延迟）
+    // 用最新的估计值计算误差
     float i_err_alpha = smo->i_alpha_est - smo->i_alpha;
     float i_err_beta = smo->i_beta_est - smo->i_beta;
 
@@ -79,8 +80,8 @@ void smo_estimate(smo_t *smo)
     smo->z_beta = smo->k_slide * smo_fun(i_err_beta, smo->boundary);
 
     // 低通滤波得到反电势估计
-    smo->e_alpha = smo->k_lpf * smo->e_alpha + (1 - smo->k_lpf) * smo->z_alpha;
-    smo->e_beta = smo->k_lpf * smo->e_beta + (1 - smo->k_lpf) * smo->z_beta;
+    smo->e_alpha = (1 - smo->k_lpf) * smo->e_alpha + smo->k_lpf * smo->z_alpha;
+    smo->e_beta = (1 - smo->k_lpf) * smo->e_beta + smo->k_lpf * smo->z_beta;
 
     // 利用 PLL 估算角度和速度
     float sin_theta, cos_theta;
@@ -97,9 +98,9 @@ void smo_estimate(smo_t *smo)
     smo->speed_est = speed_rad_s * 60.0f / (2.0f * 3.14159265f * smo->poles);
 
     // 对速度进行低通滤波
-    smo->speed_est_filt = smo->k_speed_lpf * smo->speed_est_filt + (1.0f - smo->k_speed_lpf) * smo->speed_est;
+    smo->speed_est_filt = (1.0f - smo->k_speed_lpf) * smo->speed_est_filt + smo->k_speed_lpf * smo->speed_est;
 
-    // 积分速度得到角度（使用 rad/s）
+    // 积分速度得到角度（rad/s）
     smo->theta_est += speed_rad_s * smo->ts;
 
     // 角度归一化到 [0, 2π]
@@ -108,6 +109,18 @@ void smo_estimate(smo_t *smo)
         smo->theta_est -= TWO_PI;
     while (smo->theta_est < 0.0f)
         smo->theta_est += TWO_PI;
+
+    // 计算低通滤波带来的相位滞后并进行补偿
+    float omega_e = smo->speed_est_filt * smo->poles * TWO_PI / 60.0f;
+    float delta_theta = atanf((omega_e * smo->ts * (1.0f - smo->k_lpf)) / smo->k_lpf);
+
+    smo->theta_comp = smo->theta_est + delta_theta;
+
+    // 补偿后的角度归一化
+    while (smo->theta_comp >= TWO_PI)
+        smo->theta_comp -= TWO_PI;
+    while (smo->theta_comp < 0.0f)
+        smo->theta_comp += TWO_PI;
 }
 
 float smo_get_bemf_alpha(smo_t *smo)
@@ -122,10 +135,10 @@ float smo_get_bemf_beta(smo_t *smo)
 
 float smo_get_angle(smo_t *smo)
 {
-    return smo->theta_est;
+    return smo->theta_comp;
 }
 
 float smo_get_speed_rpm(smo_t *smo)
 {
-    return smo->speed_est_filt;  // 返回滤波后的速度
+    return smo->speed_est_filt; // 返回滤波后的速度
 }

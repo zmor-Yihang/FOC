@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "foc/smo.h"
 #include "foc/foc.h"
+#include "utils/print.h"
 
 // 状态定义
 typedef enum

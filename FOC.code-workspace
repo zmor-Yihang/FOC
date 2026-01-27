@@ -22,7 +22,8 @@
             "*.cc": "cpp",
             "*.tcc": "c",
             "cstdint": "c",
-            "random": "c"
+            "random": "c",
+            "cstdio": "c"
         },
         "[yaml]": {
             "editor.insertSpaces": true,

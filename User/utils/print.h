@@ -1,9 +1,10 @@
 #ifndef __PRINT_H__
 #define __PRINT_H__
 
-#include <stdio.h>   
-#include <stdarg.h>  // 用于处理可变参数
-#include "stm32g4xx_hal.h" 
+#include <stdio.h>
+#include "stm32g4xx_hal.h"
+
+void printf_vofa(float *data, uint16_t num);
 
 #define printf_period(period_ms, fmt, ...)                        \
     do                                                            \
@@ -17,4 +18,3 @@
     } while (0)
 
 #endif /* __PRINT_H__ */
-

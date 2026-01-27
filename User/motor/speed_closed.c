@@ -70,5 +70,7 @@ void print_speed_info(void)
     }
     // 转换为角度 (0-360°)
     float angle_deg = angle_normalized * 57.2958f;
-    printf("%.2f, %.2f\n", speed_rpm_temp, angle_deg);
+    
+    float data[2] = {speed_rpm_temp, angle_deg};
+    printf_vofa(data, 2);
 }

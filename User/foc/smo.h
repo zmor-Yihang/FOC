@@ -35,6 +35,7 @@ typedef struct
 
     // 观测角度和速度
     float theta_est;       // 估算角度 (rad)
+    float theta_comp;      // 补偿后的角度 (rad)
     float speed_est;       // 估算速度 (rpm)
     float speed_est_filt;  // 滤波后的速度 (rpm)
     float k_speed_lpf;     // 速度低通滤波系数 (0.0 ~ 1.0)

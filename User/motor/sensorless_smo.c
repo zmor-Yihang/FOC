@@ -110,14 +110,14 @@ void sensorless_smo_init(float speed_rpm)
     pid_init(&pid_speed, 0.005f, 0.000002f, -2.0f, 2.0f);
 
     foc_init(&foc_smo_handle, &pid_id, &pid_iq, &pid_speed);
-    
+
     // 初始化 SMO 观测器
     smo_init(&smo, 0.12f, 0.0003f, 7.0f, 0.0001f,
              1.4f,   // k_slide - 滑模增益
-             0.4f,   // k_lpf - 低通滤波系数
+             0.6f,   // k_lpf - 低通滤波系数
              3.0f,   // boundary - 边界层厚度
              100.0f, // fc - PLL截止频率
-             0.95f); // k_speed_lpf - 速度滤波系数
+             0.05f); // k_speed_lpf - 速度滤波系数
 
     foc_set_target_id(&foc_smo_handle, 0.0f);
 
@@ -152,5 +152,6 @@ void print_sensorless_info(void)
     float angle_actual_deg = angle_actual_normalized * 57.2958f;
     float angle_smo_deg = angle_smo_normalized * 57.2958f;
 
-    printf("%.2f, %.2f, %.2f, %.2f\n", speed_rpm_actual_temp, angle_actual_deg, speed_rpm_smo_temp, angle_smo_deg);
+    float data[4] = {speed_rpm_actual_temp, angle_actual_deg, speed_rpm_smo_temp, angle_smo_deg};
+    printf_vofa(data, 4);
 }
