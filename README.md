@@ -35,6 +35,12 @@
   - 积分抗饱和限幅
   - 输出限幅保护
 
+- **弱磁控制**
+  - 自动电压模值检测
+  - 动态调整 Id 负电流
+  - 扩展高速运行范围
+  - 防止电压饱和
+
 #### 控制模式
 
 1. **开环 V/F 控制**
@@ -62,6 +68,24 @@
    - I-F 启动 + SMO 闭环切换
    - 无需编码器，降低成本
    - 支持中高速运行
+
+6. **弱磁速度闭环控制**
+   - 速度环 + 双电流环 + 弱磁控制
+   - 自动电压模值检测
+   - 动态调整 Id 负电流
+   - 扩展高速运行范围
+
+7. **Luenberger 观测器**
+   - 基于电机模型的观测器
+   - 估算电流和反电动势
+   - PLL 锁相环计算角度和速度
+   - 适用于有传感器场合的观测对比
+
+8. **带 Luenberger 的速度闭环**
+   - 使用编码器反馈进行控制
+   - Luenberger 观测器并行运行
+   - 支持编码器与观测器数据对比
+   - 适用于观测器验证和调试
 
 #### 硬件驱动（BSP 层）
 
@@ -153,7 +177,9 @@
 │   │   ├── foc.c       # FOC 主控制逻辑
 │   │   ├── pid.c       # PID 控制器
 │   │   ├── smo.c       # 滑模观测器
-│   │   └── svpwm.c     # SVPWM 调制
+│   │   ├── luenberger.c # Luenberger 观测器
+│   │   ├── svpwm.c     # SVPWM 调制
+│   │   └── flux_weakening.c # 弱磁控制
 │   ├── motor/          # 电机控制模式
 │   │   ├── if_open.c   # I-F 开环控制
 │   │   ├── current_closed.c # 电流闭环
@@ -389,7 +415,7 @@ int main(void)
     while (1)
     {
         if (key_scan() == 1) break;
-        print_sensorless_info();
+        print_sensorless_smo_info();
     }
 }
 ```
@@ -481,7 +507,7 @@ smo_init(&smo,
 // 打印速度、电流、角度等信息
 print_speed_info();
 print_current_info();
-print_sensorless_info();
+print_sensorless_smo_info();
 ```
 
 ## 开发计划

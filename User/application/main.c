@@ -13,12 +13,9 @@ int main(void)
     tim1_init();
     adc1_init();
 
-    // sensorless_smo_init(1000);
-    // speed_closed_with_smo_init(600);
-    speed_closed_with_luenberger_init(50);
-    // speed_closed_init(6500);
-    // flux_weak_speed_closed_init(6500);
-
+    sensorless_luenberger_init(2000); // Luenberger 无感
+    // speed_closed_with_luenberger_init(200); //  Luenberger 速度闭环
+    // sensorless_smo_init(1000); // 滑模无感
     while (1)
     {
         if (key_scan() == 1)
@@ -26,10 +23,9 @@ int main(void)
             printf("Stop!\n");
             break;
         }
-        // print_sensorless_info();
-        // print_speed_smo_info();
-        print_speed_luenberger_info();
-        // print_speed_info();
-        // print_flux_weak_speed_info();
+
+        print_sensorless_luenberger_info();
+        // print_speed_luenberger_info();
+        // print_sensorless_smo_info();
     }
 }

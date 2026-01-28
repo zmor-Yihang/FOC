@@ -27,8 +27,8 @@ void luenberger_init(luenberger_t *luenberger, float rs, float ls, float poles, 
     // PLL 初始化
     // 典型值：Kp = 2 * ζ * ωn, Ki = ωn^2
     // ωn = 2π * fc
-    float wn = pll_fc;
-    float zeta = 0.707f; // 阻尼系数
+    float wn = 2 * 3.14159 * pll_fc;
+    float zeta = 1.0f; // 阻尼系数
     float kp = 2.0f * zeta * wn;
     float ki = wn * wn * ts; // 注意：pid_calculate 内部不乘 ts，所以这里预乘
 
@@ -36,7 +36,7 @@ void luenberger_init(luenberger_t *luenberger, float rs, float ls, float poles, 
     luenberger->k_pll_ki = ki;
 
     // 估算最大转速用于限幅
-    float max_rpm = 6000.0f;
+    float max_rpm = 10000.0f;
     float max_speed_rad_s = max_rpm * 2.0f * 3.14159265f * poles / 60.0f;
 
     pid_init(&luenberger->pll, kp, ki, -max_speed_rad_s, max_speed_rad_s);
@@ -95,6 +95,12 @@ void luenberger_estimate(luenberger_t *luenberger)
     // PI 计算得到角速度
     luenberger->speed_rad_s = pid_calculate(&luenberger->pll, pll_err, 0.0f);
 
+    // 计算机械转速 (RPM)
+    luenberger->speed_est = luenberger->speed_rad_s * 60.0f / (2.0f * 3.14159265f * luenberger->poles);
+
+    // 对速度进行低通滤波
+    luenberger->speed_est_filt = (1.0f - luenberger->k_speed_lpf) * luenberger->speed_est_filt + luenberger->k_speed_lpf * luenberger->speed_est;
+    
     // 积分得到角度
     luenberger->theta_est += luenberger->speed_rad_s * ts;
 
@@ -103,12 +109,6 @@ void luenberger_estimate(luenberger_t *luenberger)
         luenberger->theta_est -= 2.0f * 3.14159265f;
     else if (luenberger->theta_est <= -3.14159265f)
         luenberger->theta_est += 2.0f * 3.14159265f;
-
-    // 计算机械转速 (RPM)
-    luenberger->speed_est = luenberger->speed_rad_s * 60.0f / (2.0f * 3.14159265f * luenberger->poles);
-
-    // 对速度进行低通滤波
-    luenberger->speed_est_filt = (1.0f - luenberger->k_speed_lpf) * luenberger->speed_est_filt + luenberger->k_speed_lpf * luenberger->speed_est;
 }
 
 float luenberger_get_angle(luenberger_t *luenberger)

@@ -82,8 +82,8 @@ static void sensorless_smo_callback(void)
         if (speed_error < 50.0f)
         {
             switch_counter++;
-            if (switch_counter > 100)
-            { // 持续100个周期(约100ms)
+            if (switch_counter > 2000)
+            { // 持续100个周期(约2000ms)
                 current_state = STATE_SMO_RUNNING;
                 switch_counter = 0;
             }
@@ -105,19 +105,19 @@ static void sensorless_smo_callback(void)
 void sensorless_smo_init(float speed_rpm)
 {
     // pid 初始化
-    pid_init(&pid_id, 0.017f, 0.002826f, -U_DC / 2.0f, U_DC / 2.0f);
-    pid_init(&pid_iq, 0.017f, 0.002826f, -U_DC / 2.0f, U_DC / 2.0f);
-    pid_init(&pid_speed, 0.005f, 0.000002f, -2.0f, 2.0f);
+    pid_init(&pid_id, 0.017f, 0.002826f, -U_DC / 3.0f, U_DC / 3.0f);
+    pid_init(&pid_iq, 0.017f, 0.002826f, -U_DC / 3.0f, U_DC / 3.0f);
+    pid_init(&pid_speed, 0.005f, 0.000002f, -4.0f, 4.0f);
 
     foc_init(&foc_smo_handle, &pid_id, &pid_iq, &pid_speed);
 
     // 初始化 SMO 观测器
     smo_init(&smo, 0.12f, 0.00003f, 7.0f, 0.0001f,
              1.4f,   // k_slide - 滑模增益
-             0.6f,   // k_lpf - 低通滤波系数
+             0.3f,   // k_lpf - 低通滤波系数
              3.0f,   // boundary - 边界层厚度
-             100.0f, // fc - PLL截止频率
-             0.05f); // k_speed_lpf - 速度滤波系数
+             50.0f, // fc - PLL截止频率
+             0.02f); // k_speed_lpf - 速度滤波系数
 
     foc_set_target_id(&foc_smo_handle, 0.0f);
 
@@ -133,7 +133,7 @@ void sensorless_smo_init(float speed_rpm)
     adc1_register_injected_callback(sensorless_smo_callback);
 }
 
-void print_sensorless_info(void)
+void print_sensorless_smo_info(void)
 {
     // 归一化角度到 [0, 2π) 范围
     float angle_actual_normalized = fmodf(angle_el_actual_temp, 2.0f * M_PI);

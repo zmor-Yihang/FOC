@@ -9,6 +9,7 @@
 #include "bsp/led.h"
 #include "bsp/clock.h"
 
+#include "motor/sensorless_luenberger.h"
 #include "motor/if_open.h"
 #include "motor/current_closed.h"
 #include "motor/speed_closed.h"

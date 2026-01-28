@@ -41,7 +41,7 @@ void foc_alignment(foc_t *handle)
     tim1_set_pwm_duty(duty_abc.a, duty_abc.b, duty_abc.c);
 
     /* 等待转子稳定 */
-    HAL_Delay(100);
+    HAL_Delay(1000);
 
     /* 读取当前电角度作为零点偏移 */
     handle->angle_offset = as5047_get_angle_rad();
