@@ -26,8 +26,8 @@ void foc_init(foc_t *handle, pid_controller_t *pid_id, pid_controller_t *pid_iq,
     handle->open_loop_angle_el = 0.0f;
 
     /* 初始化弱磁控制器 */
-    // 弱磁电流不要超过-30A，防止永磁体退磁
-    flux_weak_init(&handle->flux_weak, U_DC, 0.85f, 0.005f, -30.0f);
+    // 弱磁电流限制，防止永磁体退磁
+    flux_weak_init(&handle->flux_weak, U_DC, 0.85f, 0.005f, -2.0f);
 }
 
 void foc_alignment(foc_t *handle)
