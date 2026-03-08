@@ -20,8 +20,8 @@ void pid_init(pid_controller_t *pid, float kp, float ki, float out_min, float ou
     pid->out_min = out_min;
     pid->out_max = out_max;
 
-    /* 积分限幅等于输出限幅 */
-    pid->integral_max = out_max;
+    /* 积分限幅取输出范围的绝对值上限，适配单边/双边输出 */
+    pid->integral_max = fmaxf(fabsf(out_min), fabsf(out_max));
 }
 
 /**
