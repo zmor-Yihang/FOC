@@ -172,9 +172,9 @@ static void benchmark(void)
 /* ------------------------------------------------------------------ */
 /*  main                                                                */
 /* ------------------------------------------------------------------ */
-int main(void)
-{
-    accuracy_test();
-    benchmark();
-    return 0;
-}
+// int main(void)
+// {
+//     accuracy_test();
+//     benchmark();
+//     return 0;
+// }
